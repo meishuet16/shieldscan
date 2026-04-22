@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="ShieldScan AI — Malaysia Fraud Intelligence Hub. Powered by Gemini 1.5 Pro.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta property="og:title" content="ShieldScan AI — Jaga Digital Malaysia">
+  <meta property="og:description" content="Detect Malaysian fraud in real-time with AI. Powered by Gemini 1.5 Pro.">
+
+  <title>ShieldScan AI — Malaysia Fraud Intelligence Hub</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <style>
+    body {
+      background-color: #0A0E1A;
+      margin: 0;
+      padding: 0;
+    }
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #0A0E1A;
+      color: #00D4FF;
+      font-family: monospace;
+      font-size: 16px;
+      gap: 16px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #1E2D45;
+      border-top-color: #00D4FF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <span>🛡️ ShieldScan AI Loading...</span>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('loading').remove();
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
