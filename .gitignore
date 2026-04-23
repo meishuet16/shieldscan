@@ -31,3 +31,5 @@ frontend/pubspec.lock
 # OS
 .DS_Store
 Thumbs.db
+
+SUBMISSION_CHECKLIST.md
