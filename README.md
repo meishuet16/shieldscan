@@ -275,11 +275,11 @@ The following AI tools were used during development:
 
 ## 👥 Team
 
--**Team:** MyviVroomVroom
--**Member Name:** Lee Mei Shuet
--**Track:** Track 5 — Secure Digital (FinTech & Security)
--**Event:** Project 2030: MyAI Future Hackathon by GDG On Campus UTM
--**Submission Deadline:** 24 April 2026
+- **Team:** MyviVroomVroom
+- **Member Name:** Lee Mei Shuet
+- **Track:** Track 5 — Secure Digital (FinTech & Security)
+- **Event:** Project 2030: MyAI Future Hackathon by GDG On Campus UTM
+- **Submission Deadline:** 24 April 2026
 
 ---
 
