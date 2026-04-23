@@ -1,19 +1,18 @@
-# Stage 1: Build Flutter Web
-FROM ghcr.io/cirruslabs/flutter:3.22.0 AS builder
+# Stage 1
+#FROM ghcr.io/cirruslabs/flutter:3.22.0 AS builder
+FROM ghcr.io/cirruslabs/flutter:3.41.1
 
 WORKDIR /app
-COPY pubspec.yaml pubspec.lock* ./
-RUN flutter pub get
-
 COPY . .
 
-#ARG API_BASE_URL=http://localhost:8080
-ARG API_BASE_URL=https://shieldscan-backend-oci6nmhk5q-as.a.run.app
-RUN flutter build web --release \
-  --dart-define=API_BASE_URL=${API_BASE_URL} \
-  --web-renderer canvaskit
+RUN flutter pub get
 
-# Stage 2: Serve with nginx
+ARG API_BASE_URL=https://shieldscan-backend-oci6nmhk5q-as.a.run.app
+
+RUN flutter build web --release \
+  --dart-define=API_BASE_URL=${API_BASE_URL}
+
+# Stage 2
 FROM nginx:alpine
 
 COPY --from=builder /app/build/web /usr/share/nginx/html

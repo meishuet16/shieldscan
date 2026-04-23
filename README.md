@@ -4,9 +4,9 @@
 > **"Jaga Digital Malaysia"** — Protecting every Malaysian before they click.
 
 ## 🔗 Official Submission Links
-- **🌐 Live Demo (Cloud Run):** [https://your-cloudrun-url.a.run.app](https://your-cloudrun-url.a.run.app)
-- **📺 5-Minute Pitch Video:** [https://youtube.com/watch?v=your-video-id](https://youtube.com/watch?v=your-video-id)
-- **📊 Pitch Deck:** [https://drive.google.com/your-slides-pdf](https://drive.google.com/your-slides-pdf)
+- **🌐 Live Demo (Cloud Run):** [https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/](https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/)
+- **📺 5-Minute Pitch Video:** [https://youtu.be/Zv4mhR2pp4s](https://youtu.be/Zv4mhR2pp4s)
+- **📊 Pitch Deck:** [https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing)
 
 ---
 
