@@ -122,7 +122,7 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Protect every Malaysian before they click.\nPowered by Gemini 1.5 Pro + Agentic AI.',
+            'Protect every Malaysian before they click.\nPowered by Gemini 2.5 Flash + Agentic AI.',
             textAlign: TextAlign.center,
             style: GoogleFonts.spaceGrotesk(
               fontSize: 16,
