@@ -4,6 +4,8 @@ import '../widgets/stats_banner.dart';
 import '../widgets/input_panel.dart';
 import '../widgets/agent_steps_panel.dart';
 import '../widgets/result_card.dart';
+import '../widgets/trending_scams.dart';
+import '../widgets/roadmap_section.dart';
 import '../services/scan_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -36,6 +38,18 @@ class HomeScreen extends StatelessWidget {
                     return _narrowLayout(context);
                   },
                 ),
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: TrendingScams(),
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: RoadmapSection(),
               ),
             ),
             const SliverToBoxAdapter(child: _Footer()),

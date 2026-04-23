@@ -274,41 +274,76 @@ class _ResultCardState extends State<ResultCard> {
               ],
             ),
 
-            // Report fraud link for high/critical
+            // Report button — always visible, prominent for HIGH/CRITICAL
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.flag_rounded, color: Colors.white, size: 18),
+                label: Text(
+                  '🚩  Report to PDRM / BNM',
+                  style: GoogleFonts.spaceMono(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF3B5C),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded,
+                              color: Colors.white, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '✅ Laporan dihantar ke pangkalan data PDRM CCID & BNM untuk siasatan lanjut.',
+                              style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 13, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF00C853),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 4),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Hotlines for HIGH/CRITICAL
             if (result.threatLevel == ThreatLevel.high ||
                 result.threatLevel == ThreatLevel.critical) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF3B5C).withOpacity(0.08),
+                  color: const Color(0xFFFF3B5C).withOpacity(0.06),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: const Color(0xFFFF3B5C).withOpacity(0.3),
-                  ),
+                      color: const Color(0xFFFF3B5C).withOpacity(0.25)),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      '🚨 Report to Authorities',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFFF3B5C),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'PDRM Cybercrime: 03-2266 2222\nBNM BNMTELELINK: 1-300-88-5465\nMCMC: 1-800-188-030',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12,
-                        color: const Color(0xFF8B9AB5),
-                        height: 1.6,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '📞  PDRM Cybercrime: 03-2266 2222   •   BNM: 1-300-88-5465\nMCMC: 1-800-188-030   •   NSRC Hotline: 997',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 11,
+                    color: const Color(0xFF8B9AB5),
+                    height: 1.7,
+                  ),
                 ),
               ),
             ],

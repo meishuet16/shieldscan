@@ -3,7 +3,14 @@
 
 > **"Jaga Digital Malaysia"** — Protecting every Malaysian before they click.
 
-[![Cloud Run](https://img.shields.io/badge/Deployed%20on-Cloud%20Run-4285F4?logo=google-cloud)](https://shieldscan-frontend-HASH-as.a.run.app)
+## 🔗 Official Submission Links
+- **🌐 Live Demo (Cloud Run):** [https://your-cloudrun-url.a.run.app](https://your-cloudrun-url.a.run.app)
+- **📺 5-Minute Pitch Video:** [https://youtube.com/watch?v=your-video-id](https://youtube.com/watch?v=your-video-id)
+- **📊 Pitch Deck:** [https://drive.google.com/your-slides-pdf](https://drive.google.com/your-slides-pdf)
+
+---
+
+[![Cloud Run](https://img.shields.io/badge/Deployed%20on-Cloud%20Run-4285F4?logo=google-cloud)](https://your-cloudrun-url.a.run.app)
 [![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%201.5%20Pro-8E24AA?logo=google)](https://ai.google.dev)
 [![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B?logo=flutter)](https://flutter.dev)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
@@ -17,7 +24,7 @@
 Digital fraud costs Malaysian citizens **hundreds of millions of ringgit annually**. Attacks include Macau Scams, banking phishing targeting Maybank2u/CIMB, WhatsApp prize scams, and fake investment schemes. Victims — especially the elderly and those less familiar with digital platforms — often cannot distinguish real communications from sophisticated fakes.
 
 ### Our Solution: ShieldScan AI
-A **multimodal, agentic fraud detection platform** that lets any Malaysian paste a suspicious URL, text message, or upload a screenshot — and receive a real-time threat analysis powered by **Gemini 1.5 Pro** in under 10 seconds, with results in both **English and Bahasa Malaysia**.
+A **multimodal, agentic fraud detection platform** that lets any Malaysian paste a suspicious URL, text message, or upload a screenshot — and receive a real-time threat analysis powered by **Gemini 2.5 Flash** in under 10 seconds, with results in both **English and Bahasa Malaysia**.
 
 **ShieldScan directly addresses Malaysia's national priorities:**
 | Framework | Alignment |
@@ -46,7 +53,7 @@ A **multimodal, agentic fraud detection platform** that lets any Malaysian paste
 │  │                                                  │    │
 │  │  Step 1: Input Classifier                        │    │
 │  │      ↓                                           │    │
-│  │  Step 2: Gemini 1.5 Pro Multimodal Analysis ────→│──→ Google AI API
+│  │  Step 2: Gemini 2.5 Flash Multimodal Analysis ────→│──→ Google AI API
 │  │      ↓                                           │    │
 │  │  Step 3: Vertex AI Search RAG ──────────────────→│──→ Fraud Database
 │  │      ↓                                           │    │
@@ -61,11 +68,13 @@ A **multimodal, agentic fraud detection platform** that lets any Malaysian paste
 
 | Component | Technology | Role |
 |-----------|-----------|------|
-| **AI Brain** | Gemini 1.5 Pro | Core multimodal fraud analysis (URL + text + image) |
-| **Orchestration** | Custom Agentic Pipeline (4-step) | Reasoning workflow with SSE streaming |
+| **AI Brain** | Gemini 2.5 Flash | Core multimodal fraud analysis (URL + text + image) |
+| **Orchestration** | Vertex AI Agent Builder (Logic formulation) & Genkit-inspired Pipeline | 4-step reasoning workflow with SSE streaming |
 | **RAG** | Vertex AI Search | Malaysian fraud case database (PDRM/BNM/MCMC) |
 | **Development** | Google AI Studio | Prompt engineering & API testing |
 | **Deployment** | Google Cloud Run | Serverless containerized hosting |
+
+> *Note for MVP: The current Vertex AI Search index uses a curated dataset of public scam alerts scraped from BNM Amarans and news reports.*
 
 ---
 
@@ -79,7 +88,7 @@ A **multimodal, agentic fraud detection platform** that lets any Malaysian paste
 
 ### 1. Clone & Configure
 ```bash
-git clone https://github.com/YOUR_USERNAME/shieldscan.git
+git clone https://github.com/meishuet16/shieldscan.git
 cd shieldscan
 cp .env.example .env
 # Edit .env → add your GEMINI_API_KEY
@@ -115,13 +124,11 @@ docker-compose up --build
 ## ☁️ Deploy to Google Cloud Run
 
 ```bash
-export GCP_PROJECT_ID=your-project-id
+export GCP_PROJECT_ID=shieldscan-ai-494109
 export GEMINI_API_KEY=your-gemini-api-key
 
 chmod +x deploy.sh && ./deploy.sh
 ```
-
-The script outputs your public Cloud Run URLs for submission.
 
 ---
 
@@ -145,7 +152,7 @@ The script outputs your public Cloud Run URLs for submission.
 The UI streams each agent step live as Gemini works:
 ```
 ✅ Step 1: Input classified as: URL                (0.3s)
-✅ Step 2: Gemini 1.5 Pro analysis complete        (3.2s)
+✅ Step 2: Gemini 2.5 flash analysis complete        (3.2s)
 ✅ Step 3: Found 2 matching fraud pattern(s)       (0.8s)
 ✅ Step 4: Bilingual report ready (EN + BM)        (0.2s)
 ```
@@ -153,13 +160,18 @@ The UI streams each agent step live as Gemini works:
 ### Bilingual Output
 All reports are delivered in **English + Bahasa Malaysia** — making fraud protection accessible to all Malaysians.
 
+### 🛡️ ScamShield-Inspired Defenses 
+- **🚩 One-Click Reporting:** Users can flag unrecognised threats to simulate crowdsourced threat intelligence feeding into the PDRM/CCID database.
+- **🔥 Trending Scams Dashboard:** A live-feed UI displaying the latest active fraud patterns in Malaysia to proactively educate users.
+- **🚀 Transparent Roadmap:** Built-in UI section outlining Phase 2 & 3 (WhatsApp Bot & Native App Background Scanning) to demonstrate long-term commercial viability.
+
 ---
 
 ## 📁 Project Structure
 
 ```
 shieldscan/
-├── backend/                        # FastAPI + Gemini 1.5 Pro
+├── backend/                        # FastAPI + Gemini 2.5 Flash
 │   ├── main.py                     # App entry point + CORS
 │   ├── app/
 │   │   ├── api/
@@ -168,7 +180,7 @@ shieldscan/
 │   │   ├── models/
 │   │   │   └── scan.py             # Pydantic data models
 │   │   └── services/
-│   │       ├── gemini_service.py   # Gemini 1.5 Pro integration
+│   │       ├── gemini_service.py   # Gemini 2.5 Flash integration
 │   │       └── rag_service.py      # Vertex AI Search / RAG
 │   ├── requirements.txt
 │   └── Dockerfile
@@ -183,6 +195,8 @@ shieldscan/
 │   │   │   ├── input_panel.dart    # Multimodal input (URL/text/image)
 │   │   │   ├── agent_steps_panel.dart  # Real-time streaming steps
 │   │   │   └── result_card.dart    # Bilingual threat report card
+│   │   │   ├── trending_scams.dart     
+│   │   │   └── roadmap_section.dart     
 │   │   └── services/
 │   │       └── scan_provider.dart  # State management + API calls
 │   ├── web/
@@ -212,7 +226,7 @@ curl -X POST http://localhost:8080/api/scan/stream \
 Response (Server-Sent Events):
 ```
 data: {"type":"step","step":1,"status":"done","label":"Input classified as: URL","duration_ms":300}
-data: {"type":"step","step":2,"status":"running","label":"Gemini 1.5 Pro multimodal analysis"}
+data: {"type":"step","step":2,"status":"running","label":"Gemini 2.5 Flash multimodal analysis"}
 data: {"type":"step","step":2,"status":"done","label":"Gemini analysis complete","duration_ms":3200}
 data: {"type":"step","step":3,"status":"done","label":"Found 1 matching fraud pattern(s)","duration_ms":800}
 data: {"type":"step","step":4,"status":"done","label":"Bilingual report ready (EN + BM)","duration_ms":200}
@@ -254,16 +268,15 @@ Full interactive docs: `http://localhost:8080/docs`
 
 The following AI tools were used during development:
 - **Google AI Studio** — Prompt engineering and Gemini API testing
-- **Gemini 1.5 Pro** — Core fraud analysis engine (production use in app)
+- **Gemini 2.5 Flash** — Core fraud analysis engine (production use in app)
 - **Claude (Anthropic)** — Architecture planning and code assistance
-
-All team members fully understand and can explain every part of this codebase.
 
 ---
 
 ## 👥 Team
 
-**Team:** ShieldScan AI
+**Team:** MyviVroomVroom
+**Member Name:** Lee Mei Shuet
 **Track:** Track 5 — Secure Digital (FinTech & Security)
 **Event:** Project 2030: MyAI Future Hackathon by GDG On Campus UTM
 **Submission Deadline:** 24 April 2026
