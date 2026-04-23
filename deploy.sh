@@ -1,53 +1,41 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# ShieldScan AI — Cloud Run Deployment Script
-# Usage: chmod +x deploy.sh && ./deploy.sh
+# ShieldScan AI — Cloud Run Deployment (NO DOCKER REQUIRED)
+# Uses gcloud source deploy — Google builds the container for you
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -e
 
-# ── Config ────────────────────────────────────────────────────────────────────
-PROJECT_ID="${GCP_PROJECT_ID:-your-gcp-project-id}"
+PROJECT_ID="${GCP_PROJECT_ID:-shieldscan-ai-494109}"
 REGION="asia-southeast1"
 BACKEND_SERVICE="shieldscan-backend"
 FRONTEND_SERVICE="shieldscan-frontend"
-REPO="gcr.io/${PROJECT_ID}"
 
 echo "🛡️  ShieldScan AI — Deploying to Google Cloud Run"
 echo "📍 Project: ${PROJECT_ID} | Region: ${REGION}"
 echo ""
 
-# ── Step 0: Prerequisites check ───────────────────────────────────────────────
-if ! command -v gcloud &> /dev/null; then
-  echo "❌ gcloud CLI not found. Install from: https://cloud.google.com/sdk/docs/install"
-  exit 1
-fi
-
+# ── Check Gemini API Key ───────────────────────────────────────────────────────
 if [ -z "${GEMINI_API_KEY}" ]; then
-  echo "❌ GEMINI_API_KEY not set. Run: export GEMINI_API_KEY=your_key"
+  echo "❌ GEMINI_API_KEY not set."
+  echo "   Run: export GEMINI_API_KEY=your_key_here"
   exit 1
 fi
 
-# ── Step 1: Authenticate & set project ───────────────────────────────────────
-echo "🔐 Step 1/5 — Authenticating..."
-gcloud config set project "${PROJECT_ID}"
-gcloud services enable run.googleapis.com containerregistry.googleapis.com --quiet
-echo "✅ Auth done"
+# ── Enable required APIs ──────────────────────────────────────────────────────
+echo "🔐 Step 1/4 — Enabling Cloud APIs..."
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com --quiet
+echo "✅ APIs enabled"
 
-# ── Step 2: Build & push backend ─────────────────────────────────────────────
+# ── Deploy Backend (source deploy — no Docker needed!) ────────────────────────
 echo ""
-echo "🔨 Step 2/5 — Building backend Docker image..."
-docker build -t "${REPO}/${BACKEND_SERVICE}:latest" ./backend
-docker push "${REPO}/${BACKEND_SERVICE}:latest"
-echo "✅ Backend image pushed"
+echo "🚀 Step 2/4 — Deploying backend (Google will build it for you)..."
+echo "   This takes 2-4 minutes on first deploy..."
 
-# ── Step 3: Deploy backend to Cloud Run ───────────────────────────────────────
-echo ""
-echo "🚀 Step 3/5 — Deploying backend to Cloud Run..."
 gcloud run deploy "${BACKEND_SERVICE}" \
-  --image "${REPO}/${BACKEND_SERVICE}:latest" \
-  --platform managed \
+  --source ./backend \
   --region "${REGION}" \
+  --platform managed \
   --allow-unauthenticated \
   --memory 512Mi \
   --cpu 1 \
@@ -58,34 +46,63 @@ gcloud run deploy "${BACKEND_SERVICE}" \
   --quiet
 
 BACKEND_URL=$(gcloud run services describe "${BACKEND_SERVICE}" \
-  --region "${REGION}" --format "value(status.url)")
+  --region "${REGION}" \
+  --format "value(status.url)")
+
 echo "✅ Backend live at: ${BACKEND_URL}"
 
-# ── Step 4: Build & push frontend with backend URL ────────────────────────────
+# ── Build Flutter Web locally ─────────────────────────────────────────────────
 echo ""
-echo "🔨 Step 4/5 — Building Flutter Web frontend..."
-docker build \
-  --build-arg "API_BASE_URL=${BACKEND_URL}" \
-  -t "${REPO}/${FRONTEND_SERVICE}:latest" \
-  ./frontend
-docker push "${REPO}/${FRONTEND_SERVICE}:latest"
-echo "✅ Frontend image pushed"
+echo "🔨 Step 3/4 — Building Flutter Web frontend..."
 
-# ── Step 5: Deploy frontend to Cloud Run ──────────────────────────────────────
+if ! command -v flutter &> /dev/null; then
+  echo "❌ Flutter not found. Install from: https://flutter.dev/docs/get-started/install"
+  exit 1
+fi
+
+cd frontend
+flutter pub get
+flutter build web --release \
+  --dart-define=API_BASE_URL="${BACKEND_URL}"
+cd ..
+
+echo "✅ Flutter build complete"
+
+# ── Deploy Frontend (source deploy) ──────────────────────────────────────────
 echo ""
-echo "🚀 Step 5/5 — Deploying frontend to Cloud Run..."
+echo "🚀 Step 4/4 — Deploying frontend..."
+
+# Create a minimal Dockerfile just for serving the built files
+# (gcloud source deploy needs this for the frontend)
+cat > frontend/Dockerfile.serve << 'EOF'
+FROM nginx:alpine
+COPY build/web /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]
+EOF
+
+# Rename temporarily so gcloud uses it
+mv frontend/Dockerfile frontend/Dockerfile.flutter
+mv frontend/Dockerfile.serve frontend/Dockerfile
+
 gcloud run deploy "${FRONTEND_SERVICE}" \
-  --image "${REPO}/${FRONTEND_SERVICE}:latest" \
-  --platform managed \
+  --source ./frontend \
   --region "${REGION}" \
+  --platform managed \
   --allow-unauthenticated \
   --memory 256Mi \
   --cpu 1 \
   --max-instances 5 \
   --quiet
 
+# Restore original Dockerfile
+mv frontend/Dockerfile frontend/Dockerfile.serve
+mv frontend/Dockerfile.flutter frontend/Dockerfile
+
 FRONTEND_URL=$(gcloud run services describe "${FRONTEND_SERVICE}" \
-  --region "${REGION}" --format "value(status.url)")
+  --region "${REGION}" \
+  --format "value(status.url)")
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 echo ""
@@ -93,10 +110,10 @@ echo "════════════════════════�
 echo "✅  DEPLOYMENT COMPLETE"
 echo "════════════════════════════════════════════════════════"
 echo ""
-echo "🌐 Frontend (submit this):  ${FRONTEND_URL}"
-echo "⚙️  Backend API:             ${BACKEND_URL}"
-echo "📋 Health check:            ${BACKEND_URL}/api/health"
+echo "🌐 Frontend (submit this URL): ${FRONTEND_URL}"
+echo "⚙️  Backend API:                ${BACKEND_URL}"
+echo "📋 Health check:               ${BACKEND_URL}/api/health"
 echo ""
-echo "📌 Add to your submission form:"
-echo "   Cloud Run URL: ${FRONTEND_URL}"
+echo "📌 Paste this into your submission form:"
+echo "   ${FRONTEND_URL}"
 echo ""

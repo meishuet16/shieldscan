@@ -3,11 +3,11 @@ import json
 import time
 import base64
 import re
-from typing import Optional
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from app.models.scan import ScanResult, ThreatLevel, FraudIndicator
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
 FRAUD_ANALYSIS_PROMPT = """
 You are ShieldScan AI, Malaysia's leading fraud detection expert. You have deep knowledge of:
@@ -47,33 +47,39 @@ Be precise. Real Malaysians depend on this analysis.
 
 def analyze_fraud(input_type: str, content: str) -> ScanResult:
     start = time.time()
-    model = genai.GenerativeModel("gemini-1.5-pro")
 
     prompt = FRAUD_ANALYSIS_PROMPT.format(
-        input_type=input_type.upper(), content=content if input_type != "image" else "[Image attached]"
+        input_type=input_type.upper(),
+        content=content if input_type != "image" else "[Image attached]"
     )
 
     if input_type == "image":
-        # content is base64 image data
         try:
-            image_data = base64.b64decode(content)
-            response = model.generate_content([
-                prompt,
-                {"mime_type": "image/jpeg", "data": image_data}
-            ])
+            image_bytes = base64.b64decode(content)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                    types.Part.from_text(text=prompt),
+                ]
+            )
         except Exception:
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt
+            )
     else:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
 
     raw = response.text.strip()
-    # Strip markdown fences if present
     raw = re.sub(r"```json|```", "", raw).strip()
 
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        # Fallback safe response if parsing fails
         data = {
             "threat_level": "MEDIUM",
             "confidence_score": 50,
