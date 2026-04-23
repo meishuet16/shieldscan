@@ -7,7 +7,8 @@ RUN flutter pub get
 
 COPY . .
 
-ARG API_BASE_URL=http://localhost:8080
+#ARG API_BASE_URL=http://localhost:8080
+ARG API_BASE_URL=https://shieldscan-backend-oci6nmhk5q-as.a.run.app
 RUN flutter build web --release \
   --dart-define=API_BASE_URL=${API_BASE_URL} \
   --web-renderer canvaskit
