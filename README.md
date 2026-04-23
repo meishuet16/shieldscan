@@ -11,7 +11,7 @@
 ---
 
 [![Cloud Run](https://img.shields.io/badge/Deployed%20on-Cloud%20Run-4285F4?logo=google-cloud)](https://your-cloudrun-url.a.run.app)
-[![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%201.5%20Pro-8E24AA?logo=google)](https://ai.google.dev)
+[![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Flash-8E24AA?logo=google)](https://ai.google.dev)
 [![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B?logo=flutter)](https://flutter.dev)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![Track](https://img.shields.io/badge/Track%205-Secure%20Digital-FF3B5C)](https://gdgutm.com)

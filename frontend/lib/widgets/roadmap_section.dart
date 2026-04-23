@@ -13,7 +13,7 @@ class RoadmapSection extends StatelessWidget {
       'current': true,
       'items': [
         'Multimodal scanning: URL, text, image',
-        'Gemini 1.5 Pro agentic pipeline',
+        'Gemini 2.5 Flash agentic pipeline',
         'Bilingual reports (EN + BM)',
         'PDRM/BNM/MCMC RAG database',
         'Deployed on Google Cloud Run',
