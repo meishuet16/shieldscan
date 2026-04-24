@@ -117,7 +117,7 @@ class ScanProvider extends ChangeNotifier {
     status = ScanStatus.scanning;
     agentSteps = [
       AgentStep(step: 1, label: 'Classifying input type', status: 'pending'),
-      AgentStep(step: 2, label: 'Gemini 1.5 Pro multimodal analysis', status: 'pending'),
+      AgentStep(step: 2, label: 'Gemini 2.5 Flash multimodal analysis', status: 'pending'),
       AgentStep(step: 3, label: 'Cross-referencing PDRM/BNM/MCMC database', status: 'pending'),
       AgentStep(step: 4, label: 'Generating bilingual threat report', status: 'pending'),
     ];

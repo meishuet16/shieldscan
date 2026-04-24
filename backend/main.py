@@ -5,7 +5,7 @@ from app.api.health import router as health_router
 
 app = FastAPI(
     title="ShieldScan AI",
-    description="Malaysia Fraud Intelligence Hub — Powered by Gemini 1.5 Pro",
+    description="Malaysia Fraud Intelligence Hub — Powered by Gemini 2.5 Flash",
     version="1.0.0",
 )
 
