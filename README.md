@@ -5,7 +5,7 @@
 
 ## 🔗 Official Submission Links
 - **🌐 Live Demo (Cloud Run):** [https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/](https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/)
-- **📺 5-Minute Pitch Video:** [https://youtu.be/Zv4mhR2pp4s](https://youtu.be/Zv4mhR2pp4s)
+- **📺 5-Minute Pitch Video:** [https://youtu.be/ghL32WbbNEw](https://youtu.be/ghL32WbbNEw)
 - **📊 Pitch Deck:** [https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing)
 
 ---
