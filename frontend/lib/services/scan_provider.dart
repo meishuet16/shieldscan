@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-// Read API base URL injected at build time (Cloud Run URL)
 const String _apiBase = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://localhost:8080',
@@ -16,7 +16,7 @@ enum ScanStatus { idle, scanning, done, error }
 class AgentStep {
   final int step;
   String label;
-  String status; // running | done | error
+  String status;
   int? durationMs;
 
   AgentStep({
@@ -38,11 +38,13 @@ class FraudIndicator {
     required this.severity,
   });
 
-  factory FraudIndicator.fromJson(Map<String, dynamic> json) => FraudIndicator(
-        category: json['category'] ?? '',
-        description: json['description'] ?? '',
-        severity: json['severity'] ?? 'low',
-      );
+  factory FraudIndicator.fromJson(Map<String, dynamic> json) {
+    return FraudIndicator(
+      category: json['category']?.toString() ?? 'Signal',
+      description: json['description']?.toString() ?? '',
+      severity: json['severity']?.toString().toLowerCase() ?? 'low',
+    );
+  }
 }
 
 class ScanResult {
@@ -69,7 +71,7 @@ class ScanResult {
   });
 
   factory ScanResult.fromJson(Map<String, dynamic> json) {
-    final levelStr = (json['threat_level'] as String).toLowerCase();
+    final level = json['threat_level']?.toString().toLowerCase();
     final levelMap = {
       'safe': ThreatLevel.safe,
       'low': ThreatLevel.low,
@@ -77,19 +79,35 @@ class ScanResult {
       'high': ThreatLevel.high,
       'critical': ThreatLevel.critical,
     };
+    final indicators = json['indicators'];
+    final ragMatches = json['rag_matches'];
+
     return ScanResult(
-      threatLevel: levelMap[levelStr] ?? ThreatLevel.medium,
-      confidenceScore: json['confidence_score'] ?? 0,
-      summaryEn: json['summary_en'] ?? '',
-      summaryBm: json['summary_bm'] ?? '',
-      indicators: (json['indicators'] as List<dynamic>? ?? [])
-          .map((i) => FraudIndicator.fromJson(i as Map<String, dynamic>))
-          .toList(),
-      recommendationEn: json['recommendation_en'] ?? '',
-      recommendationBm: json['recommendation_bm'] ?? '',
-      ragMatches: List<String>.from(json['rag_matches'] ?? []),
-      scanDurationMs: json['scan_duration_ms'] ?? 0,
+      threatLevel: levelMap[level] ?? ThreatLevel.medium,
+      confidenceScore: _asInt(json['confidence_score']).clamp(0, 100).toInt(),
+      summaryEn: json['summary_en']?.toString() ?? '',
+      summaryBm: json['summary_bm']?.toString() ?? '',
+      indicators: indicators is List
+          ? indicators
+              .whereType<Map>()
+              .map((item) => FraudIndicator.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ))
+              .toList()
+          : <FraudIndicator>[],
+      recommendationEn: json['recommendation_en']?.toString() ?? '',
+      recommendationBm: json['recommendation_bm']?.toString() ?? '',
+      ragMatches: ragMatches is List
+          ? ragMatches.map((item) => item.toString()).toList()
+          : <String>[],
+      scanDurationMs: _asInt(json['scan_duration_ms']),
     );
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
 
@@ -98,7 +116,7 @@ class ScanProvider extends ChangeNotifier {
   List<AgentStep> agentSteps = [];
   ScanResult? result;
   String? errorMessage;
-  int totalScansToday = 1247; // Mock stat
+  int totalScansToday = 1247;
   int threatsBlocked = 89;
 
   void reset() {
@@ -109,57 +127,70 @@ class ScanProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  @visibleForTesting
+  void beginScanSessionForTest() {
+    _beginScanSession();
+  }
+
   Future<void> scan({
     required String type,
     required String content,
   }) async {
-    reset();
-    status = ScanStatus.scanning;
-    agentSteps = [
-      AgentStep(step: 1, label: 'Classifying input type', status: 'pending'),
-      AgentStep(step: 2, label: 'Gemini 2.5 Flash multimodal analysis', status: 'pending'),
-      AgentStep(step: 3, label: 'Cross-referencing PDRM/BNM/MCMC database', status: 'pending'),
-      AgentStep(step: 4, label: 'Generating bilingual threat report', status: 'pending'),
-    ];
-    notifyListeners();
+    _beginScanSession();
 
+    final client = http.Client();
     try {
       final uri = Uri.parse('$_apiBase/api/scan/stream');
       final request = http.Request('POST', uri)
         ..headers['Content-Type'] = 'application/json'
         ..body = jsonEncode({'type': type, 'content': content});
 
-      final response = await http.Client().send(request);
-      final stream = response.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter());
+      final response = await client.send(request);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final body = await response.stream.bytesToString();
+        throw HttpException(
+          'Scan request failed (${response.statusCode})'
+          '${body.isNotEmpty ? ': $body' : ''}',
+        );
+      }
+
+      final stream =
+          response.stream.transform(utf8.decoder).transform(const LineSplitter());
 
       await for (final line in stream) {
-        if (line.startsWith('data: ')) {
-          final jsonStr = line.substring(6);
-          try {
-            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-            _handleSSEEvent(data);
-          } catch (_) {}
+        if (!line.startsWith('data: ')) continue;
+
+        final jsonStr = line.substring(6);
+        try {
+          final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+          handleSseEvent(data);
+        } catch (_) {
+          continue;
         }
       }
-    } catch (e) {
+    } catch (error) {
       status = ScanStatus.error;
-      errorMessage = 'Connection error: ${e.toString()}. Make sure the backend is running.';
+      errorMessage = error is HttpException
+          ? error.message
+          : 'Connection error: ${error.toString()}. Make sure the backend is running.';
+      _markRunningStepAsError();
       notifyListeners();
+    } finally {
+      client.close();
     }
   }
 
-  void _handleSSEEvent(Map<String, dynamic> data) {
-    final type = data['type'] as String?;
+  void handleSseEvent(Map<String, dynamic> data) {
+    final type = data['type']?.toString();
 
     if (type == 'step') {
-      final stepNum = data['step'] as int;
+      final stepNum = ScanResult._asInt(data['step']);
       final idx = stepNum - 1;
       if (idx >= 0 && idx < agentSteps.length) {
-        agentSteps[idx].label = data['label'] ?? agentSteps[idx].label;
-        agentSteps[idx].status = data['status'] ?? 'done';
-        agentSteps[idx].durationMs = data['duration_ms'] as int?;
+        agentSteps[idx].label = data['label']?.toString() ?? agentSteps[idx].label;
+        agentSteps[idx].status = data['status']?.toString() ?? 'done';
+        final duration = data['duration_ms'];
+        agentSteps[idx].durationMs = duration == null ? null : ScanResult._asInt(duration);
       }
     } else if (type == 'result') {
       result = ScanResult.fromJson(data);
@@ -169,12 +200,57 @@ class ScanProvider extends ChangeNotifier {
         threatsBlocked++;
       }
       status = ScanStatus.done;
-    } else if (type == 'done') {
-      if (status != ScanStatus.done) {
-        status = ScanStatus.done;
-      }
+    } else if (type == 'error') {
+      status = ScanStatus.error;
+      errorMessage = data['message']?.toString() ?? 'Analysis failed.';
+      _markRunningStepAsError();
+    } else if (type == 'done' && status == ScanStatus.scanning) {
+      status = ScanStatus.done;
     }
 
     notifyListeners();
   }
+
+  void _beginScanSession() {
+    status = ScanStatus.scanning;
+    result = null;
+    errorMessage = null;
+    agentSteps = [
+      AgentStep(step: 1, label: 'Classifying input type', status: 'pending'),
+      AgentStep(
+        step: 2,
+        label: 'Gemini 2.5 Flash multimodal analysis',
+        status: 'pending',
+      ),
+      AgentStep(
+        step: 3,
+        label: 'Cross-referencing PDRM/BNM/MCMC database',
+        status: 'pending',
+      ),
+      AgentStep(
+        step: 4,
+        label: 'Generating bilingual threat report',
+        status: 'pending',
+      ),
+    ];
+    notifyListeners();
+  }
+
+  void _markRunningStepAsError() {
+    for (final step in agentSteps) {
+      if (step.status == 'running') {
+        step.status = 'error';
+        return;
+      }
+    }
+  }
+}
+
+class HttpException implements Exception {
+  final String message;
+
+  const HttpException(this.message);
+
+  @override
+  String toString() => message;
 }

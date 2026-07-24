@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../services/scan_provider.dart';
+import '../theme/app_theme.dart';
 
 class AgentStepsPanel extends StatelessWidget {
   const AgentStepsPanel({super.key});
@@ -12,36 +13,31 @@ class AgentStepsPanel extends StatelessWidget {
       builder: (context, provider, _) {
         return Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.psychology_rounded,
-                        color: Color(0xFF00D4FF), size: 18),
+                    const Icon(
+                      Icons.account_tree_rounded,
+                      color: AppColors.cyan,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      'Agentic Pipeline',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      'Live Analysis Pipeline',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const Spacer(),
-                    _PulsingDot(
-                      active: provider.status == ScanStatus.scanning,
-                    ),
+                    _RunState(status: provider.status),
                   ],
                 ),
                 const SizedBox(height: 16),
-                ...provider.agentSteps.asMap().entries.map((e) {
-                  final idx = e.key;
-                  final step = e.value;
+                ...provider.agentSteps.asMap().entries.map((entry) {
                   return _StepRow(
-                    step: step,
-                    isLast: idx == provider.agentSteps.length - 1,
+                    step: entry.value,
+                    isLast: entry.key == provider.agentSteps.length - 1,
                   );
                 }),
               ],
@@ -61,98 +57,66 @@ class _StepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color iconColor;
-    Widget icon;
-
-    switch (step.status) {
-      case 'done':
-        iconColor = const Color(0xFF00FF94);
-        icon = const Icon(Icons.check_circle_rounded,
-            color: Color(0xFF00FF94), size: 20);
-        break;
-      case 'running':
-        iconColor = const Color(0xFF00D4FF);
-        icon = const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Color(0xFF00D4FF),
-          ),
-        );
-        break;
-      case 'error':
-        iconColor = const Color(0xFFFF3B5C);
-        icon = const Icon(Icons.error_rounded,
-            color: Color(0xFFFF3B5C), size: 20);
-        break;
-      default:
-        iconColor = const Color(0xFF2D3748);
-        icon = Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF2D3748), width: 2),
-          ),
-          child: Center(
-            child: Text(
-              '${step.step}',
-              style: GoogleFonts.spaceMono(
-                fontSize: 10,
-                color: const Color(0xFF4A5568),
-              ),
-            ),
-          ),
-        );
-    }
+    final style = _StepStyle.fromStatus(step.status);
 
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Column(
-            children: [
-              icon,
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    color: iconColor.withOpacity(0.3),
-                    margin: const EdgeInsets.symmetric(vertical: 4),
+          SizedBox(
+            width: 28,
+            child: Column(
+              children: [
+                _StepIcon(step: step, style: style),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 1,
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      color: style.color.withOpacity(0.28),
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      step.label,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 13,
-                        color: step.status == 'pending'
-                            ? const Color(0xFF4A5568)
-                            : Colors.white,
-                        fontWeight: step.status == 'running'
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: style.background,
+                  borderRadius: BorderRadius.circular(AppRadii.panel),
+                  border: Border.all(color: style.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        step.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: style.text,
+                              fontWeight: step.status == 'running'
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
                       ),
                     ),
-                  ),
-                  if (step.durationMs != null)
-                    Text(
-                      '${(step.durationMs! / 1000).toStringAsFixed(1)}s',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 11,
-                        color: const Color(0xFF4A5568),
+                    if (step.durationMs != null) ...[
+                      const SizedBox(width: 10),
+                      Text(
+                        '${(step.durationMs! / 1000).toStringAsFixed(1)}s',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: AppColors.faint),
                       ),
-                    ),
-                ],
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -162,60 +126,108 @@ class _StepRow extends StatelessWidget {
   }
 }
 
-class _PulsingDot extends StatefulWidget {
-  final bool active;
-  const _PulsingDot({required this.active});
+class _StepIcon extends StatelessWidget {
+  final AgentStep step;
+  final _StepStyle style;
 
-  @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-    _animation = Tween(begin: 0.3, end: 1.0).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  const _StepIcon({required this.step, required this.style});
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.active) {
-      return Container(
-        width: 8,
-        height: 8,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Color(0xFF2D3748),
+    if (step.status == 'running') {
+      return const SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.2,
+          color: AppColors.cyan,
         ),
       );
     }
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (_, __) => Opacity(
-        opacity: _animation.value,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Color(0xFF00D4FF),
-          ),
-        ),
+
+    final icon = switch (step.status) {
+      'done' => Icons.check_circle_rounded,
+      'error' => Icons.error_rounded,
+      _ => Icons.radio_button_unchecked_rounded,
+    };
+
+    return Icon(icon, color: style.color, size: 22);
+  }
+}
+
+class _RunState extends StatelessWidget {
+  final ScanStatus status;
+
+  const _RunState({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (status) {
+      ScanStatus.scanning => 'Running',
+      ScanStatus.done => 'Complete',
+      ScanStatus.error => 'Error',
+      ScanStatus.idle => 'Ready',
+    };
+    final color = switch (status) {
+      ScanStatus.scanning => AppColors.cyan,
+      ScanStatus.done => AppColors.green,
+      ScanStatus.error => AppColors.red,
+      ScanStatus.idle => AppColors.faint,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(AppRadii.small),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
       ),
     );
+  }
+}
+
+class _StepStyle {
+  final Color color;
+  final Color text;
+  final Color background;
+  final Color border;
+
+  const _StepStyle({
+    required this.color,
+    required this.text,
+    required this.background,
+    required this.border,
+  });
+
+  factory _StepStyle.fromStatus(String status) {
+    return switch (status) {
+      'done' => _StepStyle(
+          color: AppColors.green,
+          text: AppColors.text,
+          background: AppColors.green.withOpacity(0.06),
+          border: AppColors.green.withOpacity(0.2),
+        ),
+      'running' => _StepStyle(
+          color: AppColors.cyan,
+          text: AppColors.text,
+          background: AppColors.cyan.withOpacity(0.08),
+          border: AppColors.cyan.withOpacity(0.28),
+        ),
+      'error' => _StepStyle(
+          color: AppColors.red,
+          text: AppColors.text,
+          background: AppColors.red.withOpacity(0.08),
+          border: AppColors.red.withOpacity(0.3),
+        ),
+      _ => const _StepStyle(
+          color: AppColors.faint,
+          text: AppColors.muted,
+          background: AppColors.ink,
+          border: AppColors.stroke,
+        ),
+    };
   }
 }

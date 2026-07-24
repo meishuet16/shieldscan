@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from enum import Enum
 
@@ -36,7 +36,7 @@ class ScanResult(BaseModel):
     indicators: List[FraudIndicator]
     recommendation_en: str
     recommendation_bm: str
-    rag_matches: Optional[List[str]] = []
+    rag_matches: Optional[List[str]] = Field(default_factory=list)
     scan_duration_ms: int
 
 

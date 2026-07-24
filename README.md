@@ -4,13 +4,16 @@
 > **"Jaga Digital Malaysia"** — Protecting every Malaysian before they click.
 
 ## 🔗 Official Submission Links
-- **🌐 Live Demo (Cloud Run):** [https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/](https://shieldscan-frontend-oci6nmhk5q-as.a.run.app/)
+- **🌐 Live Demo:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
+- **⚙️ Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
+- **✅ Backend Health:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
 - **📺 5-Minute Pitch Video:** [https://youtu.be/ghL32WbbNEw](https://youtu.be/ghL32WbbNEw)
 - **📊 Pitch Deck:** [https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing)
 
 ---
 
-[![Cloud Run](https://img.shields.io/badge/Deployed%20on-Cloud%20Run-4285F4?logo=google-cloud)](https://your-cloudrun-url.a.run.app)
+[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel)](https://vercel.com)
+[![Render](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://render.com)
 [![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Flash-8E24AA?logo=google)](https://ai.google.dev)
 [![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B?logo=flutter)](https://flutter.dev)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
@@ -40,13 +43,13 @@ A **multimodal, agentic fraud detection platform** that lets any Malaysian paste
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              Flutter Web (Cloud Run)                     │
+│              Flutter Web (Vercel)                        │
 │  [URL Input] [Text Input] [Image Upload]                 │
 │         ↓ SSE Streaming (real-time agent steps)         │
 └──────────────────────┬──────────────────────────────────┘
                        │ POST /api/scan/stream
 ┌──────────────────────▼──────────────────────────────────┐
-│              FastAPI Backend (Cloud Run)                 │
+│              FastAPI Backend (Render)                    │
 │                                                          │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │         Agentic Workflow — 4 Steps               │    │
@@ -72,7 +75,7 @@ A **multimodal, agentic fraud detection platform** that lets any Malaysian paste
 | **Orchestration** | Vertex AI Agent Builder (Logic formulation) & Genkit-inspired Pipeline | 4-step reasoning workflow with SSE streaming |
 | **RAG** | Vertex AI Search | Malaysian fraud case database (PDRM/BNM/MCMC) |
 | **Development** | Google AI Studio | Prompt engineering & API testing |
-| **Deployment** | Google Cloud Run | Serverless containerized hosting |
+| **Deployment** | Vercel + Render | Static Flutter Web frontend + FastAPI backend |
 
 > *Note for MVP: The current Vertex AI Search index uses a curated dataset of public scam alerts scraped from BNM Amarans and news reports.*
 
@@ -121,14 +124,47 @@ docker-compose up --build
 
 ---
 
-## ☁️ Deploy to Google Cloud Run
+## ☁️ Live Deployment
 
-```bash
-export GCP_PROJECT_ID=shieldscan-ai-494109
-export GEMINI_API_KEY=your-gemini-api-key
+Current production deployment:
 
-chmod +x deploy.sh && ./deploy.sh
-```
+- **Frontend:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
+- **Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
+- **Health Check:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
+
+### Backend: Render
+
+Use `render.yaml` from the repository root.
+
+- Service: `shieldscan-backend`
+- Live URL: `https://shieldscan-backend-esbt.onrender.com`
+- Root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/api/health`
+
+Set these Render environment variables:
+
+- `GEMINI_API_KEY`
+- `VERTEX_SEARCH_ENGINE_ID` (optional)
+
+### Frontend: Render Static Site
+
+- Service: `shieldscan-frontend`
+- Live URL: `https://shieldscan-frontend.onrender.com`
+- Root directory: `frontend`
+- Build command: `flutter build web --release --dart-define=API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
+- Publish directory: `build/web`
+
+### Optional Frontend: Vercel
+
+Use `frontend/vercel.json`.
+
+- Root directory: `frontend`
+- Output directory: `build/web`
+- Environment variable: `API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
+
+Vercel installs Flutter during the build and runs `flutter build web --release`.
 
 ---
 
@@ -202,11 +238,13 @@ shieldscan/
 │   ├── web/
 │   │   └── index.html              # Web entry point
 │   ├── pubspec.yaml
+│   ├── vercel.json                # Vercel Flutter Web deployment
 │   ├── nginx.conf
 │   └── Dockerfile
 │
 ├── docker-compose.yml              # Local development
-├── deploy.sh                       # One-command Cloud Run deploy
+├── render.yaml                     # Render backend deployment
+├── deploy.sh                       # Legacy Cloud Run deploy
 ├── .env.example                    # Environment template
 ├── .gitignore
 └── README.md

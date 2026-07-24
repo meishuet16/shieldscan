@@ -8,6 +8,7 @@ from google.genai import types
 from app.models.scan import ScanResult, ThreatLevel, FraudIndicator
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 FRAUD_ANALYSIS_PROMPT = """
 You are ShieldScan AI, Malaysia's leading fraud detection expert. You have deep knowledge of:
@@ -57,7 +58,7 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         try:
             image_bytes = base64.b64decode(content)
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=[
                     types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                     types.Part.from_text(text=prompt),
@@ -65,12 +66,12 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
             )
         except Exception:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=prompt
             )
     else:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=GEMINI_MODEL,
             contents=prompt
         )
 
@@ -92,15 +93,47 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         }
 
     duration_ms = int((time.time() - start) * 1000)
+    threat_level = _parse_threat_level(data.get("threat_level", "MEDIUM"))
+    confidence_score = _clamp_int(data.get("confidence_score", 50), 0, 100)
 
     return ScanResult(
-        threat_level=ThreatLevel(data.get("threat_level", "MEDIUM")),
-        confidence_score=data.get("confidence_score", 50),
+        threat_level=threat_level,
+        confidence_score=confidence_score,
         summary_en=data.get("summary_en", ""),
         summary_bm=data.get("summary_bm", ""),
-        indicators=[FraudIndicator(**i) for i in data.get("indicators", [])],
+        indicators=_parse_indicators(data.get("indicators", [])),
         recommendation_en=data.get("recommendation_en", ""),
         recommendation_bm=data.get("recommendation_bm", ""),
         rag_matches=data.get("rag_matches", []),
         scan_duration_ms=duration_ms
     )
+
+
+def _parse_threat_level(value: object) -> ThreatLevel:
+    try:
+        return ThreatLevel(str(value).upper())
+    except ValueError:
+        return ThreatLevel.MEDIUM
+
+
+def _clamp_int(value: object, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = minimum
+    return max(minimum, min(number, maximum))
+
+
+def _parse_indicators(value: object) -> list[FraudIndicator]:
+    if not isinstance(value, list):
+        return []
+
+    indicators: list[FraudIndicator] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        try:
+            indicators.append(FraudIndicator(**item))
+        except Exception:
+            continue
+    return indicators

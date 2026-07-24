@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../services/scan_provider.dart';
+import '../theme/app_theme.dart';
 
 class InputPanel extends StatefulWidget {
   const InputPanel({super.key});
@@ -17,17 +17,50 @@ class _InputPanelState extends State<InputPanel> {
   String? _imageBase64;
   String? _imageFileName;
 
-  final _tabs = [
-    {'type': 'url', 'label': '🔗 URL', 'hint': 'Paste suspicious URL here...'},
-    {'type': 'text', 'label': '💬 Text', 'hint': 'Paste suspicious message here...'},
-    {'type': 'image', 'label': '🖼️ Image', 'hint': ''},
+  static const _tabs = [
+    _InputTypeTab(
+      type: 'url',
+      label: 'URL',
+      icon: Icons.link_rounded,
+      hint: 'https://maybank2u-secure-login.xyz/verify',
+    ),
+    _InputTypeTab(
+      type: 'text',
+      label: 'Text',
+      icon: Icons.sms_outlined,
+      hint: 'Paste a suspicious SMS, WhatsApp message, or email here...',
+    ),
+    _InputTypeTab(
+      type: 'image',
+      label: 'Image',
+      icon: Icons.image_search_rounded,
+      hint: 'https://... or data:image/jpeg;base64,...',
+    ),
   ];
 
-  final _testCases = [
-    {'type': 'url', 'label': '🔴 Phishing URL', 'content': 'https://maybank2u-secure-login.xyz/verify'},
-    {'type': 'text', 'label': '🔴 Prize Scam (BM)', 'content': 'Tahniah! Anda memenangi RM5,000. Klik pautan untuk tuntut hadiah anda sekarang!'},
-    {'type': 'url', 'label': '🟢 Legit URL', 'content': 'https://www.maybank2u.com.my'},
-    {'type': 'text', 'label': '🔴 Macau Scam', 'content': 'Ini Polis DiRaja Malaysia. Akaun bank anda telah disekat. Sila hubungi kami segera atau anda akan ditangkap.'},
+  static const _testCases = [
+    _DemoCase(
+      type: 'url',
+      label: 'Phishing URL',
+      content: 'https://maybank2u-secure-login.xyz/verify',
+    ),
+    _DemoCase(
+      type: 'text',
+      label: 'Prize Scam BM',
+      content:
+          'Tahniah! Anda memenangi RM5,000. Klik pautan untuk tuntut hadiah anda sekarang!',
+    ),
+    _DemoCase(
+      type: 'url',
+      label: 'Legit URL',
+      content: 'https://www.maybank2u.com.my',
+    ),
+    _DemoCase(
+      type: 'text',
+      label: 'Macau Scam',
+      content:
+          'Ini Polis DiRaja Malaysia. Akaun bank anda telah disekat. Sila hubungi kami segera atau anda akan ditangkap.',
+    ),
   ];
 
   @override
@@ -36,36 +69,43 @@ class _InputPanelState extends State<InputPanel> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    // Web-compatible file pick using HTML input
-    // Since we're Flutter Web, use a simple base64 approach
+  void _pickImage() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Image upload: paste base64 image data or use URL for demo'),
-        backgroundColor: Color(0xFF1E2D45),
+      SnackBar(
+        content: const Text('For the web demo, paste an image URL or base64 data.'),
+        backgroundColor: AppColors.panelAlt,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+        ),
       ),
     );
   }
 
-  void _useTestCase(Map<String, String> tc) {
+  void _useTestCase(_DemoCase demo) {
     setState(() {
-      _selectedType = tc['type']!;
-      _controller.text = tc['content']!;
+      _selectedType = demo.type;
+      _controller.text = demo.content;
       _imageBase64 = null;
+      _imageFileName = null;
     });
   }
 
   void _submit() {
     final provider = context.read<ScanProvider>();
     final content = _selectedType == 'image'
-        ? (_imageBase64 ?? _controller.text)
+        ? (_imageBase64 ?? _controller.text.trim())
         : _controller.text.trim();
 
     if (content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter content to scan'),
-          backgroundColor: Color(0xFFFF3B5C),
+        SnackBar(
+          content: const Text('Enter content to scan first.'),
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.panel),
+          ),
         ),
       );
       return;
@@ -78,282 +118,167 @@ class _InputPanelState extends State<InputPanel> {
   Widget build(BuildContext context) {
     final provider = context.watch<ScanProvider>();
     final isScanning = provider.status == ScanStatus.scanning;
+    final currentTab = _tabs.firstWhere((tab) => tab.type == _selectedType);
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Panel header
             Row(
               children: [
-                const Icon(Icons.radar, color: Color(0xFF00D4FF), size: 20),
+                const Icon(Icons.radar_rounded, color: AppColors.cyan, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Scan for Fraud',
-                  style: GoogleFonts.spaceMono(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Text('Scan Console', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                if (isScanning)
+                  Text(
+                    'Running',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: AppColors.cyan),
                   ),
-                ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Type selector
-            Row(
-              children: _tabs.map((tab) {
-                final selected = _selectedType == tab['type'];
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedType = tab['type']!),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? const Color(0xFF00D4FF).withOpacity(0.15)
-                            : const Color(0xFF1A2232),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selected
-                              ? const Color(0xFF00D4FF)
-                              : const Color(0xFF2D3748),
-                          width: selected ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        tab['label']!,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 13,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                          color: selected
-                              ? const Color(0xFF00D4FF)
-                              : const Color(0xFF8B9AB5),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
             const SizedBox(height: 16),
-
-            // Input field
-            if (_selectedType != 'image')
-              TextField(
-                controller: _controller,
-                maxLines: _selectedType == 'text' ? 5 : 2,
-                style: GoogleFonts.spaceMono(
-                  fontSize: 13,
-                  color: Colors.white,
-                ),
-                decoration: InputDecoration(
-                  hintText: _tabs.firstWhere(
-                      (t) => t['type'] == _selectedType)['hint'],
-                  hintStyle: GoogleFonts.spaceGrotesk(
-                    color: const Color(0xFF4A5568),
-                    fontSize: 13,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFF0D1321),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF1E2D45)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF1E2D45)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF00D4FF)),
-                  ),
-                ),
-              )
-            else
-              GestureDetector(
-                onTap: _pickImage,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _tabs.map((tab) {
+                    final width = constraints.maxWidth < 420
+                        ? (constraints.maxWidth - 8) / 2
+                        : (constraints.maxWidth - 16) / 3;
+                    return SizedBox(
+                      width: width,
+                      child: _TypeButton(
+                        tab: tab,
+                        selected: _selectedType == tab.type,
+                        disabled: isScanning,
+                        onTap: () => setState(() => _selectedType = tab.type),
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            if (_selectedType == 'image') ...[
+              InkWell(
+                onTap: isScanning ? null : _pickImage,
+                borderRadius: BorderRadius.circular(AppRadii.panel),
                 child: Container(
-                  height: 120,
+                  height: 116,
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D1321),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFF1E2D45),
-                      style: BorderStyle.solid,
-                    ),
+                    color: AppColors.ink,
+                    borderRadius: BorderRadius.circular(AppRadii.panel),
+                    border: Border.all(color: AppColors.stroke),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         _imageBase64 != null
-                            ? Icons.check_circle_outline
+                            ? Icons.check_circle_outline_rounded
                             : Icons.cloud_upload_outlined,
                         color: _imageBase64 != null
-                            ? const Color(0xFF00FF94)
-                            : const Color(0xFF4A5568),
-                        size: 36,
+                            ? AppColors.green
+                            : AppColors.faint,
+                        size: 34,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _imageBase64 != null
                             ? 'Image loaded: $_imageFileName'
-                            : 'Click to upload screenshot\n(WhatsApp, SMS, phishing page)',
+                            : 'Paste image data below for this web demo',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 13,
-                          color: _imageBase64 != null
-                              ? const Color(0xFF00FF94)
-                              : const Color(0xFF4A5568),
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: _imageBase64 != null
+                                  ? AppColors.green
+                                  : AppColors.muted,
+                            ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-            // Image URL fallback
-            if (_selectedType == 'image') ...[
-              const SizedBox(height: 8),
-              Text(
-                'Or paste image URL / base64 data:',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  color: const Color(0xFF4A5568),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _controller,
-                style: GoogleFonts.spaceMono(fontSize: 12, color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'https://... or data:image/jpeg;base64,...',
-                  hintStyle: GoogleFonts.spaceGrotesk(
-                    color: const Color(0xFF4A5568),
-                    fontSize: 12,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFF0D1321),
-                  contentPadding: const EdgeInsets.all(12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF1E2D45)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF1E2D45)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF00D4FF)),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 10),
             ],
-
-            const SizedBox(height: 16),
-
-            // Scan button
+            TextField(
+              controller: _controller,
+              enabled: !isScanning,
+              maxLines: _selectedType == 'text' ? 6 : 3,
+              minLines: _selectedType == 'url' ? 2 : null,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                  ),
+              decoration: InputDecoration(
+                hintText: currentTab.hint,
+                prefixIcon: Icon(currentTab.icon, color: AppColors.faint),
+              ),
+            ),
+            const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
+              height: 48,
+              child: ElevatedButton.icon(
                 onPressed: isScanning ? null : _submit,
+                icon: isScanning
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.muted,
+                        ),
+                      )
+                    : const Icon(Icons.play_arrow_rounded),
+                label: Text(isScanning ? 'Analyzing content' : 'Run fraud analysis'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00D4FF),
-                  foregroundColor: const Color(0xFF0A0E1A),
-                  disabledBackgroundColor: const Color(0xFF1E2D45),
+                  backgroundColor: AppColors.cyan,
+                  foregroundColor: AppColors.ink,
+                  disabledBackgroundColor: AppColors.stroke,
+                  disabledForegroundColor: AppColors.muted,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(AppRadii.panel),
                   ),
                 ),
-                child: isScanning
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF8B9AB5),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Scanning...',
-                            style: GoogleFonts.spaceMono(
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF8B9AB5),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Text(
-                        '🔍  Run Fraud Analysis',
-                        style: GoogleFonts.spaceMono(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
               ),
             ),
-
             if (provider.status != ScanStatus.idle) ...[
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.read<ScanProvider>().reset(),
-                child: Text(
-                  'Clear & scan again',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: const Color(0xFF4A5568),
-                    fontSize: 13,
-                  ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.center,
+                child: TextButton.icon(
+                  onPressed: isScanning ? null : provider.reset,
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Clear scan'),
                 ),
               ),
             ],
-
-            const SizedBox(height: 20),
-            const Divider(color: Color(0xFF1E2D45)),
-            const SizedBox(height: 12),
-
-            // Test cases
-            Text(
-              'Quick Test Cases:',
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 12,
-                color: const Color(0xFF8B9AB5),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            const SizedBox(height: 16),
+            Text('Demo samples', style: Theme.of(context).textTheme.labelMedium),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _testCases.map((tc) {
-                return GestureDetector(
-                  onTap: () => _useTestCase(tc.cast<String, String>()),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D1321),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF2D3748)),
-                    ),
-                    child: Text(
-                      tc['label']!,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12,
-                        color: const Color(0xFF8B9AB5),
-                      ),
-                    ),
+              children: _testCases.map((demo) {
+                return ActionChip(
+                  avatar: Icon(
+                    demo.type == 'url' ? Icons.link_rounded : Icons.sms_outlined,
+                    color: AppColors.muted,
+                    size: 16,
+                  ),
+                  label: Text(demo.label),
+                  onPressed: isScanning ? null : () => _useTestCase(demo),
+                  backgroundColor: AppColors.ink,
+                  side: const BorderSide(color: AppColors.stroke),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.small),
                   ),
                 );
               }).toList(),
@@ -363,4 +288,81 @@ class _InputPanelState extends State<InputPanel> {
       ),
     );
   }
+}
+
+class _TypeButton extends StatelessWidget {
+  final _InputTypeTab tab;
+  final bool selected;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  const _TypeButton({
+    required this.tab,
+    required this.selected,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.cyan : AppColors.muted;
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: BorderRadius.circular(AppRadii.panel),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.cyan.withOpacity(0.12) : AppColors.ink,
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+          border: Border.all(
+            color: selected ? AppColors.cyan : AppColors.stroke,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(tab.icon, color: color, size: 18),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                tab.label,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: color,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InputTypeTab {
+  final String type;
+  final String label;
+  final IconData icon;
+  final String hint;
+
+  const _InputTypeTab({
+    required this.type,
+    required this.label,
+    required this.icon,
+    required this.hint,
+  });
+}
+
+class _DemoCase {
+  final String type;
+  final String label;
+  final String content;
+
+  const _DemoCase({
+    required this.type,
+    required this.label,
+    required this.content,
+  });
 }

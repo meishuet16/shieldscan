@@ -28,7 +28,7 @@ async def stream_scan(request: ScanRequest):
 
     # Step 2: Gemini Analysis
     yield sse_event({"type": "step", "step": 2, "status": "running",
-                     "label": "Gemini 1.5 Pro multimodal analysis"})
+                     "label": "Gemini multimodal fraud analysis"})
     t2 = time.time()
     try:
         result: ScanResult = await asyncio.get_event_loop().run_in_executor(
@@ -41,6 +41,7 @@ async def stream_scan(request: ScanRequest):
     except Exception as e:
         yield sse_event({"type": "step", "step": 2, "status": "error",
                          "label": f"Analysis error: {str(e)}"})
+        yield sse_event({"type": "error", "message": str(e)})
         yield sse_event({"type": "done"})
         return
 
@@ -70,7 +71,7 @@ async def stream_scan(request: ScanRequest):
         "confidence_score": result.confidence_score,
         "summary_en": result.summary_en,
         "summary_bm": result.summary_bm,
-        "indicators": [i.dict() for i in result.indicators],
+        "indicators": [i.model_dump() for i in result.indicators],
         "recommendation_en": result.recommendation_en,
         "recommendation_bm": result.recommendation_bm,
         "rag_matches": result.rag_matches,
