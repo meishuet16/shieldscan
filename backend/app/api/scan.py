@@ -28,7 +28,7 @@ async def stream_scan(request: ScanRequest):
 
     # Step 2: Gemini Analysis
     yield sse_event({"type": "step", "step": 2, "status": "running",
-                     "label": "Gemini 2.5 Flash multimodal analysis"})
+                     "label": "Gemini multimodal fraud analysis"})
     t2 = time.time()
     try:
         result: ScanResult = await asyncio.get_event_loop().run_in_executor(
