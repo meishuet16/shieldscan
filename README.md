@@ -4,7 +4,9 @@
 > **"Jaga Digital Malaysia"** — Protecting every Malaysian before they click.
 
 ## 🔗 Official Submission Links
-- **🌐 Live Demo:** Deploy the frontend on Vercel and the backend on Render using the included configs.
+- **🌐 Live Demo:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
+- **⚙️ Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
+- **✅ Backend Health:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
 - **📺 5-Minute Pitch Video:** [https://youtu.be/ghL32WbbNEw](https://youtu.be/ghL32WbbNEw)
 - **📊 Pitch Deck:** [https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing)
 
@@ -122,13 +124,20 @@ docker-compose up --build
 
 ---
 
-## ☁️ Deploy to Render + Vercel
+## ☁️ Live Deployment
+
+Current production deployment:
+
+- **Frontend:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
+- **Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
+- **Health Check:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
 
 ### Backend: Render
 
 Use `render.yaml` from the repository root.
 
 - Service: `shieldscan-backend`
+- Live URL: `https://shieldscan-backend-esbt.onrender.com`
 - Root directory: `backend`
 - Build command: `pip install -r requirements.txt`
 - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
@@ -139,13 +148,21 @@ Set these Render environment variables:
 - `GEMINI_API_KEY`
 - `VERTEX_SEARCH_ENGINE_ID` (optional)
 
-### Frontend: Vercel
+### Frontend: Render Static Site
+
+- Service: `shieldscan-frontend`
+- Live URL: `https://shieldscan-frontend.onrender.com`
+- Root directory: `frontend`
+- Build command: `flutter build web --release --dart-define=API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
+- Publish directory: `build/web`
+
+### Optional Frontend: Vercel
 
 Use `frontend/vercel.json`.
 
 - Root directory: `frontend`
 - Output directory: `build/web`
-- Environment variable: `API_BASE_URL=https://your-render-backend.onrender.com`
+- Environment variable: `API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
 
 Vercel installs Flutter during the build and runs `flutter build web --release`.
 
