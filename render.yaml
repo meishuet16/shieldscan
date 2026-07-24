@@ -10,6 +10,8 @@ services:
     healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
       - key: GEMINI_API_KEY
         sync: false
       - key: VERTEX_SEARCH_ENGINE_ID
