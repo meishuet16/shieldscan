@@ -12,6 +12,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
       - key: GEMINI_API_KEY
         sync: false
       - key: VERTEX_SEARCH_ENGINE_ID

@@ -8,6 +8,7 @@ from google.genai import types
 from app.models.scan import ScanResult, ThreatLevel, FraudIndicator
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 FRAUD_ANALYSIS_PROMPT = """
 You are ShieldScan AI, Malaysia's leading fraud detection expert. You have deep knowledge of:
@@ -57,7 +58,7 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         try:
             image_bytes = base64.b64decode(content)
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=[
                     types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
                     types.Part.from_text(text=prompt),
@@ -65,12 +66,12 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
             )
         except Exception:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=prompt
             )
     else:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=GEMINI_MODEL,
             contents=prompt
         )
 
