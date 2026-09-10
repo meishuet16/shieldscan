@@ -90,6 +90,7 @@ def parse_pdrm_alert_listing(html: str) -> list[dict]:
                 "source_url": href,
                 "published_at": date_match.group(0) if date_match else None,
                 "agency": "PDRM",
+                "evidence_role": "threat_pattern",
             }
         )
 
