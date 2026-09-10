@@ -65,6 +65,7 @@ def analyze_url(url: str) -> List[UrlSignal]:
 
     This intentionally performs no network fetch. It is safe from SSRF and works as a
     first-pass lexical/domain analysis layer before any optional reputation provider.
+    Malformed URLs are converted to explicit evidence rather than raising into the API.
     """
     signals: List[UrlSignal] = []
     parsed = urlparse(_normalise_url(url))
@@ -79,8 +80,18 @@ def analyze_url(url: str) -> List[UrlSignal]:
     if parsed.username or parsed.password:
         signals.append(UrlSignal("embedded_credentials", "Embedded credentials", 35, "URL contains username/password-style authority data"))
 
-    if parsed.port and parsed.port not in {80, 443}:
-        signals.append(UrlSignal("unusual_port", "Unusual port", 10, f"URL explicitly uses port {parsed.port}"))
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+        signals.append(UrlSignal(
+            "invalid_port",
+            "Invalid port",
+            20,
+            "URL contains a malformed or out-of-range port",
+        ))
+    if port and port not in {80, 443}:
+        signals.append(UrlSignal("unusual_port", "Unusual port", 10, f"URL explicitly uses port {port}"))
 
     if hostname.startswith("xn--") or ".xn--" in hostname:
         signals.append(UrlSignal("punycode", "Punycode hostname", 22, "Hostname uses internationalized-domain punycode"))
