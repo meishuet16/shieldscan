@@ -46,6 +46,12 @@ def build_retrieval_query(request: ScanRequest, result: ScanResult) -> str:
     return query[:IMAGE_RETRIEVAL_QUERY_MAX_CHARS]
 
 
+def _set_threat_intel_matches(result: ScanResult, matches) -> None:
+    normalized = list(matches or [])
+    result.threat_intel_matches = normalized
+    result.rag_matches = normalized  # legacy API compatibility
+
+
 async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult) -> ScanResult:
     if request.type.value != "url":
         return result
@@ -61,13 +67,14 @@ async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult
 async def _retrieve_and_ground(request: ScanRequest, result: ScanResult) -> ScanResult:
     retrieval_query = build_retrieval_query(request, result)
     if not retrieval_query:
-        result.rag_matches = []
+        _set_threat_intel_matches(result, [])
         return result
 
     matches = await asyncio.to_thread(search_threat_intelligence, retrieval_query)
-    result.rag_matches = matches
+    _set_threat_intel_matches(result, matches)
     if matches:
         result = await asyncio.to_thread(synthesize_grounded_report, result, matches)
+        _set_threat_intel_matches(result, matches)
     return result
 
 
@@ -115,7 +122,7 @@ async def stream_scan(request: ScanRequest):
     result = await _retrieve_and_ground(request, result)
     step4_ms = int((time.time() - t4) * 1000)
     yield sse_event({"type": "step", "step": 4, "status": "done",
-                     "label": f"Grounded report with {len(result.rag_matches or [])} sourced intelligence match(es)",
+                     "label": f"Grounded report with {len(result.threat_intel_matches or [])} sourced intelligence match(es)",
                      "duration_ms": step4_ms})
 
     yield sse_event({"type": "result", **result.model_dump(mode="json")})
