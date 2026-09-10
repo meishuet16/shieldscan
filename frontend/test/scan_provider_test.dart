@@ -25,7 +25,7 @@ void main() {
         'confidence_score': 78,
         'ai_confidence_score': 61,
         'deterministic_score': 70,
-        'scoring_version': 'shieldscan-v2.1',
+        'scoring_version': 'shieldscan-v2.2',
         'summary_en': 'Review needed.',
         'summary_bm': 'Semakan diperlukan.',
         'indicators': [],
@@ -36,6 +36,13 @@ void main() {
             'label': 'Possible brand impersonation',
             'score': 35,
             'evidence': 'maybank2u-secure-login.xyz',
+          },
+          {
+            'source': 'network_intelligence',
+            'code': 'tls_valid',
+            'label': 'TLS certificate validated',
+            'score': 0,
+            'evidence': 'TLS validated via 203.0.113.10',
           }
         ],
         'recommendation_en': 'Verify through official channels.',
@@ -49,7 +56,11 @@ void main() {
             'source_url': 'https://www.bnm.gov.my/financial-fraud-alerts',
             'matched_terms': ['login'],
             'summary': 'Lookalike websites may steal banking credentials.',
-            'retrieval_method': 'local-keyword-v1',
+            'retrieval_method': 'lancedb-semantic-v2',
+            'evidence_role': 'threat_pattern',
+            'retrieval_score': 0.72,
+            'published_at': '2026-08-03',
+            'agency': 'BNM',
           }
         ],
         'scan_duration_ms': 1200,
@@ -58,13 +69,15 @@ void main() {
       expect(result.confidenceScore, 78);
       expect(result.aiConfidenceScore, 61);
       expect(result.deterministicScore, 70);
-      expect(result.scoringVersion, 'shieldscan-v2.1');
-      expect(result.riskEvidence.single.code, 'brand_impersonation');
+      expect(result.scoringVersion, 'shieldscan-v2.2');
+      expect(result.riskEvidence.first.code, 'brand_impersonation');
+      expect(result.riskEvidence.last.code, 'tls_valid');
       expect(result.ragMatches.single.id, 'BNM-PHISHING-GUIDANCE');
-      expect(
-        result.ragMatches.single.sourceName,
-        startsWith('Bank Negara Malaysia'),
-      );
+      expect(result.ragMatches.single.sourceName, startsWith('Bank Negara Malaysia'));
+      expect(result.ragMatches.single.evidenceRole, 'threat_pattern');
+      expect(result.ragMatches.single.retrievalScore, closeTo(0.72, 0.001));
+      expect(result.ragMatches.single.publishedAt, '2026-08-03');
+      expect(result.ragMatches.single.agency, 'BNM');
     });
   });
 
@@ -90,10 +103,7 @@ void main() {
       final provider = ScanProvider();
       provider.beginScanSessionForTest();
 
-      provider.handleSseEvent({
-        'type': 'error',
-        'message': 'Analysis failed',
-      });
+      provider.handleSseEvent({'type': 'error', 'message': 'Analysis failed'});
 
       expect(provider.status, ScanStatus.error);
       expect(provider.errorMessage, 'Analysis failed');
@@ -103,10 +113,7 @@ void main() {
       final provider = ScanProvider();
       provider.beginScanSessionForTest();
 
-      provider.handleSseEvent({
-        'type': 'error',
-        'message': 'Analysis failed',
-      });
+      provider.handleSseEvent({'type': 'error', 'message': 'Analysis failed'});
       provider.handleSseEvent({'type': 'done'});
 
       expect(provider.status, ScanStatus.error);
