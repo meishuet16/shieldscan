@@ -39,14 +39,15 @@ def test_text_query_keeps_original_content():
 
 
 def test_image_query_deduplicates_equal_summaries_and_is_bounded():
-    long_summary = "x" * (IMAGE_RETRIEVAL_QUERY_MAX_CHARS + 500)
+    unique_prefix = "UNIQUE_IMAGE_SUMMARY "
+    long_summary = unique_prefix + ("x" * (IMAGE_RETRIEVAL_QUERY_MAX_CHARS + 500))
     request = ScanRequest(type=InputType.IMAGE, content="base64-data")
     result = _result(summary_en=long_summary, summary_bm=long_summary)
 
     query = build_retrieval_query(request, result)
 
     assert len(query) == IMAGE_RETRIEVAL_QUERY_MAX_CHARS
-    assert query.count(long_summary[:100]) == 1
+    assert query.count(unique_prefix) == 1
 
 
 def test_empty_image_semantics_produce_empty_query():
