@@ -133,6 +133,9 @@ class ScanResult {
   final List<ThreatIntelMatch> ragMatches;
   final int scanDurationMs;
 
+  int get riskScore => confidenceScore;
+  List<ThreatIntelMatch> get threatIntelMatches => ragMatches;
+
   ScanResult({
     required this.threatLevel,
     required this.confidenceScore,
@@ -160,11 +163,12 @@ class ScanResult {
     };
     final indicators = json['indicators'];
     final riskEvidence = json['risk_evidence'];
-    final ragMatches = json['rag_matches'];
+    final threatIntelMatches = json['threat_intel_matches'] ?? json['rag_matches'];
+    final rawRiskScore = json['risk_score'] ?? json['confidence_score'];
 
     return ScanResult(
       threatLevel: levelMap[level] ?? ThreatLevel.medium,
-      confidenceScore: _asInt(json['confidence_score']).clamp(0, 100).toInt(),
+      confidenceScore: _asInt(rawRiskScore).clamp(0, 100).toInt(),
       aiConfidenceScore: json['ai_confidence_score'] == null
           ? null
           : _asInt(json['ai_confidence_score']).clamp(0, 100).toInt(),
@@ -186,8 +190,8 @@ class ScanResult {
           : <RiskEvidence>[],
       recommendationEn: json['recommendation_en']?.toString() ?? '',
       recommendationBm: json['recommendation_bm']?.toString() ?? '',
-      ragMatches: ragMatches is List
-          ? ragMatches
+      ragMatches: threatIntelMatches is List
+          ? threatIntelMatches
               .whereType<Map>()
               .map((item) => ThreatIntelMatch.fromJson(Map<String, dynamic>.from(item)))
               .toList()
