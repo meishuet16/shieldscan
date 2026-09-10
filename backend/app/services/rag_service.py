@@ -1,11 +1,17 @@
+import logging
+import os
 from typing import List
 
 from app.models.scan import ThreatIntelMatch
+from app.services.vertex_search_service import (
+    VertexSearchNotConfigured,
+    search_vertex_threat_intelligence,
+)
 
+logger = logging.getLogger(__name__)
 
-# Curated seed corpus. Every record is intentionally explicit about provenance.
-# This is NOT labelled as RAG: it is deterministic local retrieval that provides a
-# stable fallback while the external ingestion/indexing pipeline is built.
+# Curated provenance-bearing fallback corpus. This remains available for local
+# development and when the managed retrieval provider is unavailable.
 THREAT_INTEL_CORPUS = [
     {
         "id": "BNM-PHISHING",
@@ -38,7 +44,7 @@ THREAT_INTEL_CORPUS = [
         "id": "PDRM-SCAM-ALERT",
         "title": "Scam Alert",
         "category": "impersonation-and-social-engineering",
-        "summary": "PDRM publishes current scam alerts and advises the public to verify suspicious account or phone details through official channels.",
+        "summary": "PDRM publishes scam alerts and advises the public to verify suspicious details through official channels.",
         "keywords": ["polis", "pdrm", "guru", "teacher", "qr", "akaun", "account", "transfer", "scammer"],
         "source_name": "Polis Diraja Malaysia — Scam Alert",
         "source_url": "https://www.rmp.gov.my/laman-utama/peringatan/alert-peringatan",
@@ -55,38 +61,46 @@ THREAT_INTEL_CORPUS = [
 ]
 
 
-def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
-    """Retrieve provenance-bearing threat intelligence from the local seed corpus.
-
-    This deliberately uses transparent keyword retrieval instead of pretending that a
-    vector/Vertex index exists. The API shape is already suitable for replacing this
-    implementation with hybrid/vector retrieval later without changing scan clients.
-    """
+def search_local_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
     content_lower = content.lower()
     ranked = []
-
     for record in THREAT_INTEL_CORPUS:
         matched_terms = [term for term in record["keywords"] if term.lower() in content_lower]
-        if not matched_terms:
-            continue
-        ranked.append((len(matched_terms), record, matched_terms))
-
+        if matched_terms:
+            ranked.append((len(matched_terms), record, matched_terms))
     ranked.sort(key=lambda item: item[0], reverse=True)
     return [
         ThreatIntelMatch(
-            id=record["id"],
-            title=record["title"],
-            category=record["category"],
-            source_name=record["source_name"],
-            source_url=record["source_url"],
-            matched_terms=matched_terms,
-            summary=record["summary"],
+            id=record["id"], title=record["title"], category=record["category"],
+            source_name=record["source_name"], source_url=record["source_url"],
+            matched_terms=matched_terms, summary=record["summary"],
             retrieval_method="local-keyword-v1",
         )
         for _, record, matched_terms in ranked[:limit]
     ]
 
 
-# Backwards-compatible alias while older callers are migrated.
+def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
+    """Retrieve sourced intelligence, preferring Vertex AI Search when configured.
+
+    SHIELDSCAN_RETRIEVAL_PROVIDER=vertex enables managed semantic retrieval. Provider
+    errors fail visibly in logs and degrade to the local provenance-bearing corpus;
+    they never turn a failed lookup into evidence that content is safe.
+    """
+    provider = os.getenv("SHIELDSCAN_RETRIEVAL_PROVIDER", "local").strip().lower()
+    if provider == "vertex":
+        try:
+            matches = search_vertex_threat_intelligence(content, limit=limit)
+            if matches:
+                return matches
+            logger.info("Vertex AI Search returned no sourced matches; using local fallback")
+        except VertexSearchNotConfigured as exc:
+            logger.warning("Vertex AI Search requested but not configured: %s", exc)
+        except Exception:
+            logger.exception("Vertex AI Search failed; using local fallback")
+    return search_local_threat_intelligence(content, limit=limit)
+
+
 def search_rag_database(content: str, threat_level: str | None = None) -> List[ThreatIntelMatch]:
+    """Compatibility alias. Prefer search_threat_intelligence in new code."""
     return search_threat_intelligence(content)
