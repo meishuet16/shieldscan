@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from app.models.scan import ScanRequest, ScanResult
 from app.services.gemini_service import analyze_fraud
-from app.services.rag_service import search_rag_database
+from app.services.rag_service import search_threat_intelligence
 from app.services.risk_engine import apply_risk_engine
 
 router = APIRouter()
@@ -55,15 +55,17 @@ async def stream_scan(request: ScanRequest):
                      "label": f"Risk score assembled from {len(result.risk_evidence)} evidence signal(s)",
                      "duration_ms": scoring_ms})
 
-    # Step 4: Fraud-pattern cross-reference
+    # Step 4: provenance-bearing threat-intelligence retrieval.
     yield sse_event({"type": "step", "step": 4, "status": "running",
-                     "label": "Cross-referencing fraud patterns"})
+                     "label": "Retrieving related threat intelligence"})
     t4 = time.time()
-    rag_matches = search_rag_database(request.content, result.threat_level.value)
-    result.rag_matches = rag_matches
+    # Raw image base64 is intentionally not keyword-retrieved. Semantic image-to-intel
+    # retrieval will be added when the indexed corpus is available.
+    intel_matches = [] if request.type == "image" else search_threat_intelligence(request.content)
+    result.rag_matches = intel_matches
     step4_ms = int((time.time() - t4) * 1000)
     yield sse_event({"type": "step", "step": 4, "status": "done",
-                     "label": f"Found {len(rag_matches)} related pattern(s)",
+                     "label": f"Found {len(intel_matches)} sourced intelligence match(es)",
                      "duration_ms": step4_ms})
 
     yield sse_event({"type": "result", **result.model_dump(mode="json")})
@@ -90,5 +92,5 @@ async def scan(request: ScanRequest):
         None, analyze_fraud, request.type, request.content
     )
     result = apply_risk_engine(request.type, request.content, result)
-    result.rag_matches = search_rag_database(request.content, result.threat_level.value)
+    result.rag_matches = [] if request.type == "image" else search_threat_intelligence(request.content)
     return result
