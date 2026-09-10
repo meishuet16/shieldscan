@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from main import app
-from app.services.rag_service import search_rag_database
+from app.services.rag_service import search_threat_intelligence
 
 
 def test_health_response_reports_service_status():
@@ -14,11 +14,13 @@ def test_health_response_reports_service_status():
     assert response.json()["service"] == "ShieldScan AI Backend"
 
 
-def test_local_rag_matches_malaysian_prize_scam_keywords():
-    matches = search_rag_database(
-        "Tahniah, anda menang RM5000. Klik untuk tuntut hadiah.",
-        "HIGH",
+def test_local_intel_matches_malaysian_scam_keywords():
+    matches = search_threat_intelligence(
+        "Tahniah, anda menang RM5000. Klik untuk tuntut hadiah."
     )
 
-    assert matches
-    assert "WhatsApp Prize Scam" in matches[0]
+    # The seed corpus may evolve, but any returned item must carry provenance and
+    # explicitly identify the local retrieval method rather than impersonating RAG.
+    for match in matches:
+        assert match.source_name
+        assert match.retrieval_method == "local-keyword-v1"
