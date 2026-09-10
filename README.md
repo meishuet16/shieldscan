@@ -1,335 +1,245 @@
 # 🛡️ ShieldScan AI
-### Malaysia Fraud Intelligence Hub — Project 2030 Hackathon · Track 5: Secure Digital
 
-> **"Jaga Digital Malaysia"** — Protecting every Malaysian before they click.
+### Evidence-based Malaysian fraud analysis for URLs, messages, and screenshots
 
-## 🔗 Official Submission Links
-- **🌐 Live Demo:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
-- **⚙️ Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
-- **✅ Backend Health:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
-- **📺 5-Minute Pitch Video:** [https://youtu.be/ghL32WbbNEw](https://youtu.be/ghL32WbbNEw)
-- **📊 Pitch Deck:** [https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing)
+ShieldScan began as a Project 2030 hackathon prototype and is being upgraded into a more auditable fraud-analysis and verification platform. Gemini is still part of the system, but it is no longer treated as the sole source of truth.
 
----
+## What ShieldScan does
 
-[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel)](https://vercel.com)
-[![Render](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://render.com)
-[![Gemini](https://img.shields.io/badge/Powered%20by-Gemini%202.5%20Flash-8E24AA?logo=google)](https://ai.google.dev)
-[![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B?logo=flutter)](https://flutter.dev)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Track](https://img.shields.io/badge/Track%205-Secure%20Digital-FF3B5C)](https://gdgutm.com)
+Users can submit:
 
----
+- a suspicious URL;
+- a text message;
+- a screenshot/image.
 
-## 🎯 Problem & Solution
+ShieldScan combines semantic analysis, deterministic evidence, Malaysian threat intelligence, and grounded report generation to produce an English/Bahasa Malaysia risk report.
 
-### The Problem
-Digital fraud costs Malaysian citizens **hundreds of millions of ringgit annually**. Attacks include Macau Scams, banking phishing targeting Maybank2u/CIMB, WhatsApp prize scams, and fake investment schemes. Victims — especially the elderly and those less familiar with digital platforms — often cannot distinguish real communications from sophisticated fakes.
+## Current analysis pipeline
 
-### Our Solution: ShieldScan AI
-A **multimodal, agentic fraud detection platform** that lets any Malaysian paste a suspicious URL, text message, or upload a screenshot — and receive a real-time threat analysis powered by **Gemini 2.5 Flash** in under 10 seconds, with results in both **English and Bahasa Malaysia**.
-
-**ShieldScan directly addresses Malaysia's national priorities:**
-| Framework | Alignment |
-|-----------|-----------|
-| **NIMP 2030** | Builds indigenous AI-powered security infrastructure |
-| **MyDIGITAL** | Advances digital economy safety and public trust |
-| **Malaysia Madani** | Protects the rakyat from financial harm |
-| **BNM / PDRM / MCMC** | Complements existing fraud reporting systems |
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│              Flutter Web (Vercel)                        │
-│  [URL Input] [Text Input] [Image Upload]                 │
-│         ↓ SSE Streaming (real-time agent steps)         │
-└──────────────────────┬──────────────────────────────────┘
-                       │ POST /api/scan/stream
-┌──────────────────────▼──────────────────────────────────┐
-│              FastAPI Backend (Render)                    │
-│                                                          │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │         Agentic Workflow — 4 Steps               │    │
-│  │                                                  │    │
-│  │  Step 1: Input Classifier                        │    │
-│  │      ↓                                           │    │
-│  │  Step 2: Gemini 2.5 Flash Multimodal Analysis ────→│──→ Google AI API
-│  │      ↓                                           │    │
-│  │  Step 3: Vertex AI Search RAG ──────────────────→│──→ Fraud Database
-│  │      ↓                                           │    │
-│  │  Step 4: Bilingual Report Generator              │    │
-│  └─────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
+```text
+input
+  ↓
+Gemini semantic / multimodal analysis
+  ↓
+Deterministic risk engine
+  ├─ lexical URL signals
+  └─ bounded DNS / TLS / RDAP metadata for URL scans
+  ↓
+Threat-intelligence retrieval
+  ├─ LanceDB semantic retrieval
+  ├─ evidence-role filtering
+  ├─ similarity threshold
+  └─ local keyword fallback
+  ↓
+Grounded Gemini synthesis
+  ↓
+final report
 ```
 
----
+Gemini can improve semantic interpretation, bilingual summaries, indicators, and recommendations. It cannot overwrite the final authoritative risk score, threat level, or deterministic evidence assembled by the risk engine.
 
-## 🧠 Google AI Ecosystem Stack
+## URL intelligence
 
-| Component | Technology | Role |
-|-----------|-----------|------|
-| **AI Brain** | Gemini 2.5 Flash | Core multimodal fraud analysis (URL + text + image) |
-| **Orchestration** | Vertex AI Agent Builder (Logic formulation) & Genkit-inspired Pipeline | 4-step reasoning workflow with SSE streaming |
-| **RAG** | Vertex AI Search | Malaysian fraud case database (PDRM/BNM/MCMC) |
-| **Development** | Google AI Studio | Prompt engineering & API testing |
-| **Deployment** | Vercel + Render | Static Flutter Web frontend + FastAPI backend |
+URL scans currently inspect deterministic signals such as:
 
-> *Note for MVP: The current Vertex AI Search index uses a curated dataset of public scam alerts scraped from BNM Amarans and news reports.*
+- HTTPS usage;
+- raw-IP hostnames;
+- punycode;
+- suspicious TLDs;
+- unusual ports;
+- hostname entropy/shape;
+- Malaysian-brand lookalikes;
+- credential-bait paths.
 
----
+They can also use bounded network metadata:
 
-## 🚀 Quick Start (Local Development)
+- DNS resolution and public/non-public address classification;
+- TLS certificate validation against a previously validated public IP using the original hostname for SNI;
+- RDAP registration-date metadata queried through a fixed provider endpoint.
 
-### Prerequisites
-- Flutter 3.22+ (`flutter doctor`)
-- Python 3.12+
-- Docker & Docker Compose (optional)
-- [Gemini API Key](https://aistudio.google.com/app/apikey) — **free**
+ShieldScan does **not** fetch the submitted webpage, execute its JavaScript, follow its redirects, or submit forms/credentials.
 
-### 1. Clone & Configure
+A valid TLS certificate or public DNS result is **not** treated as proof that a site is safe. Scam sites can also use HTTPS and normal public hosting.
+
+## Threat-intelligence retrieval
+
+The versioned corpus contains provenance-bearing Malaysian fraud intelligence sourced from official/public BNM, PDRM, and MCMC material.
+
+The default retrieval path is:
+
+```text
+LanceDB semantic retrieval
+→ threat-pattern role filtering
+→ similarity threshold
+→ local sourced keyword fallback
+```
+
+Important distinction:
+
+- `threat_pattern` records can support scam-pattern matching;
+- `response_guidance` records are for victim-response advice and are excluded from fraud-pattern retrieval;
+- `context_only` records are background material.
+
+Retrieved records are supporting evidence, not proof that the scanned item is fraudulent.
+
+## Image / screenshot analysis
+
+Image scans use Gemini for multimodal interpretation. ShieldScan then builds a bounded text-only retrieval query from the semantic summaries and fraud indicators.
+
+Raw image bytes/base64 are never sent into LanceDB, Vertex AI Search, or local keyword retrieval.
+
+## Risk scoring
+
+Current score bands:
+
+| Risk score | Level |
+| ---: | --- |
+| 0–19 | SAFE |
+| 20–39 | LOW |
+| 40–64 | MEDIUM |
+| 65–84 | HIGH |
+| 85–100 | CRITICAL |
+
+These bands are engineering defaults, **not calibrated fraud probabilities**.
+
+The response separates:
+
+- final risk score;
+- Gemini self-reported confidence;
+- deterministic score;
+- typed deterministic evidence;
+- scoring version;
+- sourced threat-intelligence matches.
+
+See `docs/EVALUATION.md` for the current regression suite and calibration limitations.
+
+## Safety, privacy, and abuse controls
+
+Current backend controls include:
+
+- request-body size limits on scan endpoints;
+- per-client in-process sliding-window rate limiting;
+- request IDs and response-latency metadata;
+- operational logging without intentionally logging submitted URL/text/image content;
+- no scan-history database in the current service;
+- SSRF-aware public-address checks before user-derived hosts are used for DNS/TLS metadata work.
+
+The current rate limiter is per application instance. Multi-instance deployments need shared state such as Redis/Upstash.
+
+See `docs/SECURITY_MODEL.md` and `docs/PRIVACY_AND_RETENTION.md`.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Flutter Web |
+| Backend | FastAPI / Python |
+| Semantic + multimodal reasoning | Gemini via Google Gen AI SDK |
+| Default semantic retrieval | LanceDB + multilingual sentence-transformer embeddings |
+| Optional managed retrieval | Vertex AI Search |
+| Threat-intel corpus | Versioned JSON + official-source ingestion scripts |
+| Deployment configuration | Vercel frontend + Render backend |
+
+Gemini remains an important reasoning layer, but ShieldScan is deliberately designed so that an LLM answer alone does not determine the final URL risk verdict.
+
+## Local development
+
+### Backend
+
 ```bash
 git clone https://github.com/meishuet16/shieldscan.git
-cd shieldscan
-cp .env.example .env
-# Edit .env → add your GEMINI_API_KEY
-```
-
-### 2. Run Backend
-```bash
-cd backend
+cd shieldscan/backend
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8080
-# API docs: http://localhost:8080/docs
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements-rag.txt
 ```
 
-### 3. Run Flutter Frontend
+Set `GEMINI_API_KEY`, then build the local threat-intelligence index:
+
+```bash
+python scripts/build_threat_index.py
+uvicorn main:app --reload --port 8080
+```
+
+Useful optional environment variables:
+
+```text
+SHIELDSCAN_RETRIEVAL_PROVIDER=lancedb
+SHIELDSCAN_SEMANTIC_MIN_SIMILARITY=0.35
+SHIELDSCAN_LOCAL_KEYWORD_MIN_SCORE=0.20
+SHIELDSCAN_LANCEDB_PATH=data/lancedb
+```
+
+### Frontend
+
 ```bash
 cd frontend
 flutter pub get
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8080
 ```
 
-### 4. Or: Docker Compose (one command)
-```bash
-docker-compose up --build
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:8080
-# API docs: http://localhost:8080/docs
-```
+## API
 
----
+### `POST /api/scan`
 
-## ☁️ Live Deployment
+Returns a complete JSON scan result.
 
-Current production deployment:
+### `POST /api/scan/stream`
 
-- **Frontend:** [https://shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com)
-- **Backend API:** [https://shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com)
-- **Health Check:** [https://shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health)
-
-### Backend: Render
-
-Use `render.yaml` from the repository root.
-
-- Service: `shieldscan-backend`
-- Live URL: `https://shieldscan-backend-esbt.onrender.com`
-- Root directory: `backend`
-- Build command: `pip install -r requirements.txt`
-- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Health check: `/api/health`
-
-Set these Render environment variables:
-
-- `GEMINI_API_KEY`
-- `VERTEX_SEARCH_ENGINE_ID` (optional)
-
-### Frontend: Render Static Site
-
-- Service: `shieldscan-frontend`
-- Live URL: `https://shieldscan-frontend.onrender.com`
-- Root directory: `frontend`
-- Build command: `flutter build web --release --dart-define=API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
-- Publish directory: `build/web`
-
-### Optional Frontend: Vercel
-
-Use `frontend/vercel.json`.
-
-- Root directory: `frontend`
-- Output directory: `build/web`
-- Environment variable: `API_BASE_URL=https://shieldscan-backend-esbt.onrender.com`
-
-Vercel installs Flutter during the build and runs `flutter build web --release`.
-
----
-
-## 🎯 Features
-
-### Multimodal Scanning
-- **🔗 URL Analysis** — Domain age, SSL validity, brand impersonation, suspicious TLDs
-- **💬 Text Analysis** — Urgency patterns, prize scams, Bahasa Malaysia fraud phrases, impersonation
-- **🖼️ Image Analysis** — Fake login pages, fake receipts, WhatsApp scam screenshots
-
-### Threat Levels
-| Level | Indicator | Meaning |
-|-------|-----------|---------|
-| SAFE | 🟢 | No fraud indicators detected |
-| LOW | 🟡 | Minor suspicious elements — proceed with caution |
-| MEDIUM | 🟠 | Multiple fraud signals — verify before proceeding |
-| HIGH | 🔴 | Strong fraud indicators — do not proceed |
-| CRITICAL | 🚨 | Confirmed fraud pattern — report immediately |
-
-### Real-time Agentic Steps (SSE Streaming)
-The UI streams each agent step live as Gemini works:
-```
-✅ Step 1: Input classified as: URL                (0.3s)
-✅ Step 2: Gemini 2.5 flash analysis complete        (3.2s)
-✅ Step 3: Found 2 matching fraud pattern(s)       (0.8s)
-✅ Step 4: Bilingual report ready (EN + BM)        (0.2s)
-```
-
-### Bilingual Output
-All reports are delivered in **English + Bahasa Malaysia** — making fraud protection accessible to all Malaysians.
-
-### 🛡️ ScamShield-Inspired Defenses 
-- **🚩 One-Click Reporting:** Users can flag unrecognised threats to simulate crowdsourced threat intelligence feeding into the PDRM/CCID database.
-- **🔥 Trending Scams Dashboard:** A live-feed UI displaying the latest active fraud patterns in Malaysia to proactively educate users.
-- **🚀 Transparent Roadmap:** Built-in UI section outlining Phase 2 & 3 (WhatsApp Bot & Native App Background Scanning) to demonstrate long-term commercial viability.
-
----
-
-## 📁 Project Structure
-
-```
-shieldscan/
-├── backend/                        # FastAPI + Gemini 2.5 Flash
-│   ├── main.py                     # App entry point + CORS
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── scan.py             # Scan endpoint + SSE streaming
-│   │   │   └── health.py           # Health check
-│   │   ├── models/
-│   │   │   └── scan.py             # Pydantic data models
-│   │   └── services/
-│   │       ├── gemini_service.py   # Gemini 2.5 Flash integration
-│   │       └── rag_service.py      # Vertex AI Search / RAG
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/                       # Flutter Web
-│   ├── lib/
-│   │   ├── main.dart               # App entry + Material theme
-│   │   ├── screens/
-│   │   │   └── home_screen.dart    # Main dashboard
-│   │   ├── widgets/
-│   │   │   ├── stats_banner.dart   # Live statistics banner
-│   │   │   ├── input_panel.dart    # Multimodal input (URL/text/image)
-│   │   │   ├── agent_steps_panel.dart  # Real-time streaming steps
-│   │   │   └── result_card.dart    # Bilingual threat report card
-│   │   │   ├── trending_scams.dart     
-│   │   │   └── roadmap_section.dart     
-│   │   └── services/
-│   │       └── scan_provider.dart  # State management + API calls
-│   ├── web/
-│   │   └── index.html              # Web entry point
-│   ├── pubspec.yaml
-│   ├── vercel.json                # Vercel Flutter Web deployment
-│   ├── nginx.conf
-│   └── Dockerfile
-│
-├── docker-compose.yml              # Local development
-├── render.yaml                     # Render backend deployment
-├── deploy.sh                       # Legacy Cloud Run deploy
-├── .env.example                    # Environment template
-├── .gitignore
-└── README.md
-```
-
----
-
-## 🔌 API Reference
-
-### `POST /api/scan/stream` — Streaming SSE (recommended)
-```bash
-curl -X POST http://localhost:8080/api/scan/stream \
-  -H "Content-Type: application/json" \
-  -d '{"type": "url", "content": "https://maybank2u-login.xyz/verify"}'
-```
-
-Response (Server-Sent Events):
-```
-data: {"type":"step","step":1,"status":"done","label":"Input classified as: URL","duration_ms":300}
-data: {"type":"step","step":2,"status":"running","label":"Gemini 2.5 Flash multimodal analysis"}
-data: {"type":"step","step":2,"status":"done","label":"Gemini analysis complete","duration_ms":3200}
-data: {"type":"step","step":3,"status":"done","label":"Found 1 matching fraud pattern(s)","duration_ms":800}
-data: {"type":"step","step":4,"status":"done","label":"Bilingual report ready (EN + BM)","duration_ms":200}
-data: {"type":"result","threat_level":"CRITICAL","confidence_score":97,...}
-data: {"type":"done"}
-```
-
-### `POST /api/scan` — Standard JSON
-```bash
-curl -X POST http://localhost:8080/api/scan \
-  -H "Content-Type: application/json" \
-  -d '{"type": "text", "content": "Tahniah! Anda memenangi RM5000!"}'
-```
+Streams progress and the final result through Server-Sent Events.
 
 ### `GET /api/health`
-```json
-{"status":"ok","service":"ShieldScan AI Backend","version":"1.0.0","gemini_configured":true}
+
+Returns backend health/configuration status.
+
+Interactive FastAPI docs are available at `/docs` while the backend is running.
+
+## Threat-intelligence maintenance
+
+The repository includes controlled ingestion scripts for official sources such as BNM, PDRM, and MCMC.
+
+Corpus refreshes should be reviewed before indexing/deployment:
+
+```text
+run source-specific ingestion
+→ review corpus/provenance diff
+→ run tests/evaluation fixtures
+→ rebuild LanceDB index
+→ deploy
 ```
 
-Full interactive docs: `http://localhost:8080/docs`
+A retrieval failure never becomes a SAFE signal.
 
----
+## CI and evaluation
 
-## 🧪 Test Cases for Demo
+The repository includes Backend CI and Frontend CI. Deterministic regression fixtures cover cases such as:
 
-| Input | Type | Expected |
-|-------|------|---------|
-| `https://maybank2u-secure-login.xyz/verify` | URL | 🚨 CRITICAL |
-| `Tahniah! Anda memenangi RM5,000. Klik untuk tuntut!` | Text | 🔴 HIGH |
-| `Ini Polis DiRaja Malaysia. Akaun anda disekat.` | Text | 🚨 CRITICAL |
-| `https://www.maybank2u.com.my` | URL | 🟢 SAFE |
-| `https://google.com` | URL | 🟢 SAFE |
-| WhatsApp prize scam screenshot | Image | 🔴 HIGH/CRITICAL |
+- official Malaysian banking URLs;
+- banking lookalike domains;
+- IP-host credential bait;
+- phishing/investment retrieval positives;
+- benign banking discussions that must not create threat matches;
+- response guidance that must not be mistaken for fraud evidence;
+- image retrieval-query construction and base64 exclusion.
 
----
+Gemini outputs are not asserted in ordinary CI because generative responses can vary between model revisions and runs. Generative quality should be measured separately with labelled offline evaluation data.
 
-## 🤖 AI Tools Disclosure
-*(As required by Project 2030 Code of Conduct — Section 4)*
+## Known limitations
 
-The following AI tools were used during development:
-- **Google AI Studio** — Prompt engineering and Gemini API testing
-- **Gemini 2.5 Flash** — Core fraud analysis engine (production use in app)
-- **Claude (Anthropic)** — Architecture planning and code assistance
+- Current thresholds and network-signal weights are not statistically calibrated.
+- The local threat-intelligence corpus is intentionally limited and not an exhaustive official database.
+- RDAP metadata can be missing or provider-dependent.
+- ShieldScan does not currently inspect webpage content or redirect chains.
+- It does not use a commercial malware/domain-reputation feed yet.
+- Image semantic/retrieval quality still needs a labelled screenshot evaluation set.
+- Current rate limiting is not shared across multiple backend instances.
 
----
+These limitations are intentional to document rather than hide.
 
-## 👥 Team
+## Project origin
 
-- **Team:** MyviVroomVroom
-- **Member Name:** Lee Mei Shuet
-- **Track:** Track 5 — Secure Digital (FinTech & Security)
-- **Event:** Project 2030: MyAI Future Hackathon by GDG On Campus UTM
-- **Submission Deadline:** 24 April 2026
+ShieldScan was originally built by **MyviVroomVroom** for **Project 2030: MyAI Future Hackathon**, Track 5 — Secure Digital. The current upgrade branch extends that prototype with evidence-based scoring, grounded threat intelligence, security controls, evaluation fixtures, and production-oriented architecture work.
 
----
+## Responsible use
 
-## 📞 Report Fraud (Malaysia)
-
-| Authority | Contact |
-|-----------|---------|
-| PDRM Cybercrime | 03-2266 2222 |
-| BNM BNMTELELINK | 1-300-88-5465 |
-| MCMC Aduan | 1-800-188-030 |
-| NSRC (National Scam Response Centre) | 997 |
-
----
-
-*Built with ❤️ for Malaysia — "Advance the Nation by Building Solutions with Google AI"*
+ShieldScan is a decision-support tool, not a guarantee that content is safe or fraudulent. For suspected financial scams, verify through the relevant institution's official channels and use current Malaysian reporting/response channels.
