@@ -60,6 +60,7 @@ def parse_bnm_fca_html(html: str) -> list[dict]:
                 "source_url": SOURCE_URL,
                 "published_at": date_text or None,
                 "agency": "BNM",
+                "evidence_role": "threat_pattern",
                 "reported_channels": links,
                 "reported_channel_text": website_text,
             }
