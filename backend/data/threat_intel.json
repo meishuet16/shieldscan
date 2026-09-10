@@ -1,0 +1,79 @@
+[
+  {
+    "id": "BNM-PHISHING-GUIDANCE",
+    "title": "Phishing guidance",
+    "category": "phishing",
+    "summary": "Fraudulent links, unsolicited messages and lookalike websites can be used to steal banking credentials.",
+    "keywords": ["phishing", "login", "verify", "credential", "bank", "sms", "email", "fake website", "click link"],
+    "source_name": "Bank Negara Malaysia — Financial Fraud Alerts",
+    "source_url": "https://www.bnm.gov.my/financial-fraud-alerts",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
+    "id": "BNM-MOBILE-APP-SCAM",
+    "title": "Mobile application scam guidance",
+    "category": "malicious-app",
+    "summary": "Suspicious third-party applications can expose transaction alerts, OTPs and device access.",
+    "keywords": ["apk", "download app", "install app", "otp", "sms", "whatsapp", "telegram", "third party application"],
+    "source_name": "Bank Negara Malaysia — Financial Fraud Alerts",
+    "source_url": "https://www.bnm.gov.my/financial-fraud-alerts",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
+    "id": "BNM-MULE-ACCOUNT",
+    "title": "Mule account guidance",
+    "category": "mule-account",
+    "summary": "Accounts offered for rent or used to receive and transfer suspicious funds can expose users to financial and legal harm.",
+    "keywords": ["rent account", "sewa akaun", "atm card", "bank account", "transfer funds", "mule", "job offer"],
+    "source_name": "Bank Negara Malaysia — Mule Account",
+    "source_url": "https://www.bnm.gov.my/muleaccount",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
+    "id": "BNM-FCA-GENERAL",
+    "title": "Financial Consumer Alert List",
+    "category": "investment-scam",
+    "summary": "BNM maintains an alert list for entities or schemes that may be wrongly represented as licensed or regulated by BNM.",
+    "keywords": ["investment", "pelaburan", "forex", "crypto", "return", "untung", "guaranteed", "licensed", "clone entity"],
+    "source_name": "Bank Negara Malaysia — Financial Consumer Alert List",
+    "source_url": "https://www.bnm.gov.my/financial-consumer-alert-list",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
+    "id": "BNM-FCA-2026-08-03",
+    "title": "Financial Consumer Alert update — 3 August 2026",
+    "category": "investment-scam",
+    "summary": "BNM added multiple unauthorised entities and potential clone entities to its Financial Consumer Alert list on 3 August 2026.",
+    "keywords": ["trade like maza", "trunks livetrade", "dollar master", "ilmu trader profesional", "sinolion capital", "investment", "potential clone entity"],
+    "source_name": "Bank Negara Malaysia — Financial Consumer Alert update",
+    "source_url": "https://www.bnm.gov.my/-/fca-update-030826-bm",
+    "published_at": "2026-08-03",
+    "agency": "BNM"
+  },
+  {
+    "id": "BNM-BNM-IMPERSONATION",
+    "title": "Alert on fake websites and messages impersonating BNM",
+    "category": "impersonation-and-phishing",
+    "summary": "BNM warns that messages and fake websites using its name may request identity or banking credentials and should not be trusted.",
+    "keywords": ["bank negara", "bnm", "update identity", "banking credentials", "fake website", "sms", "impersonation"],
+    "source_name": "Bank Negara Malaysia — Fraud and Scam Notices",
+    "source_url": "https://www.bnm.gov.my/fraud-and-scam-notices",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
+    "id": "PDRM-SCAM-ALERT",
+    "title": "Scam Alert",
+    "category": "impersonation-and-social-engineering",
+    "summary": "PDRM publishes scam alerts and advises the public to verify suspicious account, phone and payment details through official channels.",
+    "keywords": ["polis", "pdrm", "qr", "akaun", "account", "transfer", "scammer", "phone", "impersonation"],
+    "source_name": "Polis Diraja Malaysia — Scam Alert",
+    "source_url": "https://www.rmp.gov.my/laman-utama/peringatan/alert-peringatan",
+    "published_at": null,
+    "agency": "PDRM"
+  }
+]
