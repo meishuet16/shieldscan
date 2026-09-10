@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/scan_provider.dart';
 import '../theme/app_theme.dart';
@@ -45,11 +46,23 @@ class _ResultCardState extends State<ResultCard> {
                     ?.copyWith(color: AppColors.muted),
               ),
             ),
+            if (result.riskEvidence.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _Section(
+                icon: Icons.rule_rounded,
+                title: 'Deterministic Risk Evidence',
+                child: Column(
+                  children: result.riskEvidence
+                      .map((evidence) => _RiskEvidenceRow(evidence: evidence))
+                      .toList(),
+                ),
+              ),
+            ],
             if (result.indicators.isNotEmpty) ...[
               const SizedBox(height: 14),
               _Section(
                 icon: Icons.warning_amber_rounded,
-                title: 'Fraud Indicators',
+                title: 'Semantic Fraud Indicators',
                 child: Column(
                   children: result.indicators
                       .map((indicator) => _IndicatorRow(indicator: indicator))
@@ -61,11 +74,10 @@ class _ResultCardState extends State<ResultCard> {
               const SizedBox(height: 14),
               _Section(
                 icon: Icons.manage_search_rounded,
-                title: 'Malaysia Pattern Matches',
+                title: 'Related Official Threat Intelligence',
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: result.ragMatches
-                      .map((match) => _EvidenceLine(text: match))
+                      .map((match) => _ThreatIntelCard(match: match))
                       .toList(),
                 ),
               ),
@@ -82,7 +94,7 @@ class _ResultCardState extends State<ResultCard> {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'Scanned in ${(result.scanDurationMs / 1000).toStringAsFixed(1)}s',
+                'Scanned in ${(result.scanDurationMs / 1000).toStringAsFixed(1)}s · ${result.scoringVersion}',
                 style: Theme.of(context)
                     .textTheme
                     .labelMedium
@@ -134,7 +146,7 @@ class _RiskHeader extends StatelessWidget {
               ),
             ],
           );
-          final confidence = _ConfidenceScore(
+          final riskScore = _RiskScore(
             value: result.confidenceScore,
             color: level.color,
           );
@@ -145,7 +157,7 @@ class _RiskHeader extends StatelessWidget {
               children: [
                 riskText,
                 const SizedBox(height: 12),
-                confidence,
+                riskScore,
               ],
             );
           }
@@ -154,7 +166,7 @@ class _RiskHeader extends StatelessWidget {
             children: [
               Expanded(child: riskText),
               const SizedBox(width: 16),
-              confidence,
+              riskScore,
             ],
           );
         },
@@ -163,11 +175,11 @@ class _RiskHeader extends StatelessWidget {
   }
 }
 
-class _ConfidenceScore extends StatelessWidget {
+class _RiskScore extends StatelessWidget {
   final int value;
   final Color color;
 
-  const _ConfidenceScore({required this.value, required this.color});
+  const _RiskScore({required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -183,13 +195,13 @@ class _ConfidenceScore extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '$value%',
+            '$value',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w900,
                 ),
           ),
-          Text('confidence', style: Theme.of(context).textTheme.labelMedium),
+          Text('risk score / 100', style: Theme.of(context).textTheme.labelMedium),
         ],
       ),
     );
@@ -294,6 +306,70 @@ class _Section extends StatelessWidget {
   }
 }
 
+class _RiskEvidenceRow extends StatelessWidget {
+  final RiskEvidence evidence;
+
+  const _RiskEvidenceRow({required this.evidence});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.orange.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(AppRadii.small),
+            ),
+            child: Text(
+              '+${evidence.score}',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: AppColors.orange, fontSize: 10),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  evidence.label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                if (evidence.evidence.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    evidence.evidence,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _IndicatorRow extends StatelessWidget {
   final FraudIndicator indicator;
 
@@ -362,29 +438,72 @@ class _IndicatorRow extends StatelessWidget {
   }
 }
 
-class _EvidenceLine extends StatelessWidget {
-  final String text;
+class _ThreatIntelCard extends StatelessWidget {
+  final ThreatIntelMatch match;
 
-  const _EvidenceLine({required this.text});
+  const _ThreatIntelCard({required this.match});
+
+  Future<void> _openSource() async {
+    final value = match.sourceUrl;
+    if (value == null || value.isEmpty) return;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !const {'https', 'http'}.contains(uri.scheme)) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
+    final hasSource = match.sourceUrl?.isNotEmpty ?? false;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: AppColors.cyan.withOpacity(0.22)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.circle, color: AppColors.cyan, size: 7),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              text,
+          Text(
+            match.title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            match.sourceName,
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(color: AppColors.cyan),
+          ),
+          if (match.summary.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              match.summary,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
                   ?.copyWith(color: AppColors.muted),
             ),
-          ),
+          ],
+          if (hasSource) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _openSource,
+              icon: const Icon(Icons.open_in_new_rounded, size: 15),
+              label: const Text('View official source'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.cyan,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 32),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -450,37 +569,7 @@ class _ReportActions extends StatelessWidget {
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.flag_rounded, size: 18),
-            label: const Text('Report to PDRM / BNM'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.panel),
-              ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'Report queued for the demo incident workflow.',
-                  ),
-                  backgroundColor: AppColors.green,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.panel),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        if (urgent) ...[
-          const SizedBox(height: 10),
+        if (urgent)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -490,7 +579,7 @@ class _ReportActions extends StatelessWidget {
               border: Border.all(color: AppColors.red.withOpacity(0.22)),
             ),
             child: Text(
-              'Malaysia hotlines: PDRM Cybercrime 03-2266 2222 · BNM 1-300-88-5465 · MCMC 1-800-188-030 · NSRC 997',
+              'If money was transferred or credentials were exposed, contact your bank immediately and call NSRC 997. Lodge a police report as soon as possible.',
               textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme
@@ -498,7 +587,6 @@ class _ReportActions extends StatelessWidget {
                   ?.copyWith(color: AppColors.muted, height: 1.5),
             ),
           ),
-        ],
       ],
     );
   }
@@ -519,7 +607,7 @@ class _LevelView {
     return switch (level) {
       ThreatLevel.safe => const _LevelView(
           label: 'SAFE',
-          description: 'No fraud indicators detected.',
+          description: 'No significant fraud indicators detected in this scan.',
           color: AppColors.green,
         ),
       ThreatLevel.low => const _LevelView(
@@ -529,17 +617,17 @@ class _LevelView {
         ),
       ThreatLevel.medium => const _LevelView(
           label: 'MEDIUM RISK',
-          description: 'Multiple signals need verification.',
+          description: 'Multiple signals need independent verification.',
           color: AppColors.orange,
         ),
       ThreatLevel.high => const _LevelView(
           label: 'HIGH RISK',
-          description: 'Strong fraud indicators. Do not proceed.',
+          description: 'Strong fraud indicators. Do not proceed without verification.',
           color: AppColors.red,
         ),
       ThreatLevel.critical => const _LevelView(
           label: 'CRITICAL',
-          description: 'Confirmed fraud pattern. Report immediately.',
+          description: 'Very strong fraud indicators. Stop and verify through official channels.',
           color: AppColors.red,
         ),
     };
