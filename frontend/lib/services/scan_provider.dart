@@ -47,23 +47,95 @@ class FraudIndicator {
   }
 }
 
+class RiskEvidence {
+  final String source;
+  final String code;
+  final String label;
+  final int score;
+  final String evidence;
+
+  RiskEvidence({
+    required this.source,
+    required this.code,
+    required this.label,
+    required this.score,
+    required this.evidence,
+  });
+
+  factory RiskEvidence.fromJson(Map<String, dynamic> json) {
+    return RiskEvidence(
+      source: json['source']?.toString() ?? 'risk_engine',
+      code: json['code']?.toString() ?? 'signal',
+      label: json['label']?.toString() ?? 'Security signal',
+      score: ScanResult._asInt(json['score']),
+      evidence: json['evidence']?.toString() ?? '',
+    );
+  }
+}
+
+class ThreatIntelMatch {
+  final String id;
+  final String title;
+  final String category;
+  final String sourceName;
+  final String? sourceUrl;
+  final List<String> matchedTerms;
+  final String summary;
+  final String retrievalMethod;
+
+  ThreatIntelMatch({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.sourceName,
+    required this.sourceUrl,
+    required this.matchedTerms,
+    required this.summary,
+    required this.retrievalMethod,
+  });
+
+  factory ThreatIntelMatch.fromJson(Map<String, dynamic> json) {
+    final terms = json['matched_terms'];
+    return ThreatIntelMatch(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Related threat intelligence',
+      category: json['category']?.toString() ?? 'fraud-intelligence',
+      sourceName: json['source_name']?.toString() ?? 'Official source',
+      sourceUrl: json['source_url']?.toString(),
+      matchedTerms: terms is List
+          ? terms.map((item) => item.toString()).toList()
+          : <String>[],
+      summary: json['summary']?.toString() ?? '',
+      retrievalMethod: json['retrieval_method']?.toString() ?? 'retrieval',
+    );
+  }
+}
+
 class ScanResult {
   final ThreatLevel threatLevel;
   final int confidenceScore;
+  final int? aiConfidenceScore;
+  final int deterministicScore;
+  final String scoringVersion;
   final String summaryEn;
   final String summaryBm;
   final List<FraudIndicator> indicators;
+  final List<RiskEvidence> riskEvidence;
   final String recommendationEn;
   final String recommendationBm;
-  final List<String> ragMatches;
+  final List<ThreatIntelMatch> ragMatches;
   final int scanDurationMs;
 
   ScanResult({
     required this.threatLevel,
     required this.confidenceScore,
+    required this.aiConfidenceScore,
+    required this.deterministicScore,
+    required this.scoringVersion,
     required this.summaryEn,
     required this.summaryBm,
     required this.indicators,
+    required this.riskEvidence,
     required this.recommendationEn,
     required this.recommendationBm,
     required this.ragMatches,
@@ -80,11 +152,18 @@ class ScanResult {
       'critical': ThreatLevel.critical,
     };
     final indicators = json['indicators'];
+    final riskEvidence = json['risk_evidence'];
     final ragMatches = json['rag_matches'];
 
     return ScanResult(
       threatLevel: levelMap[level] ?? ThreatLevel.medium,
       confidenceScore: _asInt(json['confidence_score']).clamp(0, 100).toInt(),
+      aiConfidenceScore: json['ai_confidence_score'] == null
+          ? null
+          : _asInt(json['ai_confidence_score']).clamp(0, 100).toInt(),
+      deterministicScore:
+          _asInt(json['deterministic_score']).clamp(0, 100).toInt(),
+      scoringVersion: json['scoring_version']?.toString() ?? 'shieldscan-v2',
       summaryEn: json['summary_en']?.toString() ?? '',
       summaryBm: json['summary_bm']?.toString() ?? '',
       indicators: indicators is List
@@ -95,11 +174,24 @@ class ScanResult {
                   ))
               .toList()
           : <FraudIndicator>[],
+      riskEvidence: riskEvidence is List
+          ? riskEvidence
+              .whereType<Map>()
+              .map((item) => RiskEvidence.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ))
+              .toList()
+          : <RiskEvidence>[],
       recommendationEn: json['recommendation_en']?.toString() ?? '',
       recommendationBm: json['recommendation_bm']?.toString() ?? '',
       ragMatches: ragMatches is List
-          ? ragMatches.map((item) => item.toString()).toList()
-          : <String>[],
+          ? ragMatches
+              .whereType<Map>()
+              .map((item) => ThreatIntelMatch.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ))
+              .toList()
+          : <ThreatIntelMatch>[],
       scanDurationMs: _asInt(json['scan_duration_ms']),
     );
   }
@@ -216,20 +308,20 @@ class ScanProvider extends ChangeNotifier {
     result = null;
     errorMessage = null;
     agentSteps = [
-      AgentStep(step: 1, label: 'Classifying input type', status: 'pending'),
+      AgentStep(step: 1, label: 'Preparing input', status: 'pending'),
       AgentStep(
         step: 2,
-        label: 'Gemini 2.5 Flash multimodal analysis',
+        label: 'Running semantic fraud analysis',
         status: 'pending',
       ),
       AgentStep(
         step: 3,
-        label: 'Cross-referencing PDRM/BNM/MCMC database',
+        label: 'Evaluating deterministic security signals',
         status: 'pending',
       ),
       AgentStep(
         step: 4,
-        label: 'Generating bilingual threat report',
+        label: 'Retrieving and grounding threat intelligence',
         status: 'pending',
       ),
     ];
