@@ -5,7 +5,7 @@ import base64
 import re
 from google import genai
 from google.genai import types
-from app.models.scan import ScanResult, ThreatLevel, FraudIndicator
+from app.models.scan import ScanResult, ThreatLevel, FraudIndicator, ThreatIntelMatch
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
@@ -43,6 +43,42 @@ Threat Level Guidelines:
 
 The confidence score is your model confidence only. It is not a calibrated probability and
 will be combined with deterministic evidence by ShieldScan's risk engine.
+"""
+
+GROUNDED_SYNTHESIS_PROMPT = """
+You are ShieldScan AI's grounded report synthesizer.
+
+The authoritative final risk level and risk score below were already computed by ShieldScan's
+risk engine. You MUST NOT change, reinterpret, or contradict them. Your task is only to improve
+the user-facing explanation using the supplied semantic analysis and retrieved threat-intelligence
+records.
+
+Rules:
+- Use only facts present in SEMANTIC ANALYSIS and RETRIEVED EVIDENCE.
+- Treat retrieved records as related intelligence, not proof that the scanned item is identical.
+- Never claim that an authority confirmed this specific user-submitted item unless the evidence says so.
+- Do not invent agencies, dates, URLs, case IDs, victims, losses, or live-database checks.
+- If evidence is weak or only broadly similar, say it is related guidance rather than a direct match.
+- Keep recommendations practical and conservative.
+- Return JSON only.
+
+AUTHORITATIVE RISK:
+level={risk_level}
+score={risk_score}
+
+SEMANTIC ANALYSIS:
+{semantic_analysis}
+
+RETRIEVED EVIDENCE:
+{retrieved_evidence}
+
+Respond with exactly:
+{{
+  "summary_en": "<2-4 sentence grounded English summary>",
+  "summary_bm": "<2-4 sentence grounded Bahasa Malaysia summary>",
+  "recommendation_en": "<clear English action>",
+  "recommendation_bm": "<clear Bahasa Malaysia action>"
+}}
 """
 
 
@@ -106,6 +142,60 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         rag_matches=[],
         scan_duration_ms=duration_ms
     )
+
+
+def synthesize_grounded_report(result: ScanResult, matches: list[ThreatIntelMatch]) -> ScanResult:
+    """Use retrieved evidence to improve explanation without changing authoritative risk.
+
+    This is the generation half of ShieldScan's RAG pipeline. Retrieval evidence can shape
+    summaries and recommendations, but deterministic risk-engine outputs remain locked.
+    Failures are non-fatal: the original semantic report is returned unchanged.
+    """
+    if not matches:
+        return result
+
+    semantic_analysis = {
+        "summary_en": result.summary_en,
+        "summary_bm": result.summary_bm,
+        "indicators": [item.model_dump(mode="json") for item in result.indicators],
+        "recommendation_en": result.recommendation_en,
+        "recommendation_bm": result.recommendation_bm,
+    }
+    retrieved_evidence = [
+        {
+            "id": match.id,
+            "title": match.title,
+            "category": match.category,
+            "source_name": match.source_name,
+            "source_url": match.source_url,
+            "matched_terms": match.matched_terms,
+            "summary": match.summary,
+            "retrieval_method": match.retrieval_method,
+        }
+        for match in matches
+    ]
+
+    prompt = GROUNDED_SYNTHESIS_PROMPT.format(
+        risk_level=result.threat_level.value,
+        risk_score=result.confidence_score,
+        semantic_analysis=json.dumps(semantic_analysis, ensure_ascii=False),
+        retrieved_evidence=json.dumps(retrieved_evidence, ensure_ascii=False),
+    )
+
+    try:
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        raw = re.sub(r"```json|```", "", response.text.strip()).strip()
+        data = json.loads(raw)
+    except Exception:
+        return result
+
+    # Intentionally update only narrative fields. Risk level, score, evidence and
+    # indicators remain authoritative outputs from earlier pipeline stages.
+    result.summary_en = str(data.get("summary_en") or result.summary_en)
+    result.summary_bm = str(data.get("summary_bm") or result.summary_bm)
+    result.recommendation_en = str(data.get("recommendation_en") or result.recommendation_en)
+    result.recommendation_bm = str(data.get("recommendation_bm") or result.recommendation_bm)
+    return result
 
 
 def _parse_threat_level(value: object) -> ThreatLevel:
