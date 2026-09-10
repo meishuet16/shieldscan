@@ -10,7 +10,7 @@ def test_returns_structured_source_provenance_for_phishing():
     top = matches[0]
     assert top.source_name.startswith("Bank Negara Malaysia")
     assert top.source_url and top.source_url.startswith("https://www.bnm.gov.my/")
-    assert top.retrieval_method == "local-keyword-v2"
+    assert top.retrieval_method == "local-keyword-v3"
     assert top.evidence_role == "threat_pattern"
     assert top.retrieval_score is not None and top.retrieval_score > 0
     assert "maybank2u" in top.matched_terms
