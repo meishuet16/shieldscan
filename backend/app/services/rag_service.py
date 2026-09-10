@@ -3,6 +3,7 @@ import os
 from typing import List
 
 from app.models.scan import ThreatIntelMatch
+from app.services.lancedb_service import LanceDBNotReady, search_lancedb_threat_intelligence
 from app.services.vertex_search_service import (
     VertexSearchNotConfigured,
     search_vertex_threat_intelligence,
@@ -10,8 +11,9 @@ from app.services.vertex_search_service import (
 
 logger = logging.getLogger(__name__)
 
-# Curated provenance-bearing fallback corpus. This remains available for local
-# development and when the managed retrieval provider is unavailable.
+# Curated provenance-bearing seed corpus. This powers both the deterministic fallback
+# and the local LanceDB index builder. It is deliberately small until a proper ingestion
+# pipeline for official advisories is added.
 THREAT_INTEL_CORPUS = [
     {
         "id": "BNM-PHISHING",
@@ -81,14 +83,30 @@ def search_local_threat_intelligence(content: str, limit: int = 3) -> List[Threa
 
 
 def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
-    """Retrieve sourced intelligence, preferring Vertex AI Search when configured.
+    """Retrieve sourced threat intelligence through a provider-agnostic interface.
 
-    SHIELDSCAN_RETRIEVAL_PROVIDER=vertex enables managed semantic retrieval. Provider
-    errors fail visibly in logs and degrade to the local provenance-bearing corpus;
-    they never turn a failed lookup into evidence that content is safe.
+    Providers:
+      - lancedb (default): local semantic vector retrieval, no account/API key required
+      - vertex: optional managed Vertex AI Search provider
+      - local: transparent deterministic keyword fallback
+
+    Retrieval failures never become evidence that content is safe. Any unavailable
+    provider degrades to the provenance-bearing local corpus and logs the condition.
     """
-    provider = os.getenv("SHIELDSCAN_RETRIEVAL_PROVIDER", "local").strip().lower()
-    if provider == "vertex":
+    provider = os.getenv("SHIELDSCAN_RETRIEVAL_PROVIDER", "lancedb").strip().lower()
+
+    if provider == "lancedb":
+        try:
+            matches = search_lancedb_threat_intelligence(content, limit=limit)
+            if matches:
+                return matches
+            logger.info("LanceDB returned no semantic matches; using local fallback")
+        except LanceDBNotReady as exc:
+            logger.info("Local semantic retrieval not ready: %s", exc)
+        except Exception:
+            logger.exception("LanceDB retrieval failed; using local fallback")
+
+    elif provider == "vertex":
         try:
             matches = search_vertex_threat_intelligence(content, limit=limit)
             if matches:
@@ -98,6 +116,10 @@ def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntel
             logger.warning("Vertex AI Search requested but not configured: %s", exc)
         except Exception:
             logger.exception("Vertex AI Search failed; using local fallback")
+
+    elif provider != "local":
+        logger.warning("Unknown retrieval provider '%s'; using local fallback", provider)
+
     return search_local_threat_intelligence(content, limit=limit)
 
 
