@@ -14,13 +14,11 @@ def test_health_response_reports_service_status():
     assert response.json()["service"] == "ShieldScan AI Backend"
 
 
-def test_local_intel_matches_malaysian_scam_keywords():
+def test_local_intel_returns_provenance_when_it_matches():
     matches = search_threat_intelligence(
-        "Tahniah, anda menang RM5000. Klik untuk tuntut hadiah."
+        "Maybank2u login verification required for your bank account."
     )
 
-    # The seed corpus may evolve, but any returned item must carry provenance and
-    # explicitly identify the local retrieval method rather than impersonating RAG.
-    for match in matches:
-        assert match.source_name
-        assert match.retrieval_method == "local-keyword-v1"
+    assert matches
+    assert matches[0].source_name.startswith("Bank Negara Malaysia")
+    assert matches[0].retrieval_method == "local-keyword-v1"
