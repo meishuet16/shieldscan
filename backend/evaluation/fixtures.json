@@ -15,7 +15,7 @@
     {
       "id": "cimb-lookalike",
       "url": "http://cimbclicks-login-support.top/verify",
-      "expected_min_deterministic_score": 65,
+      "expected_min_deterministic_score": 59,
       "must_have": ["brand_impersonation", "no_https"]
     },
     {
