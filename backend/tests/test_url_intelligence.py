@@ -25,6 +25,11 @@ class UrlIntelligenceTests(unittest.TestCase):
         self.assertIn("ip_hostname", codes)
         self.assertIn("no_https", codes)
 
+    def test_malformed_port_becomes_evidence_instead_of_exception(self):
+        signals = analyze_url("https://example.com:99999/login")
+        codes = {signal.code for signal in signals}
+        self.assertIn("invalid_port", codes)
+
     def test_score_thresholds(self):
         self.assertEqual(score_to_level(10), ThreatLevel.SAFE)
         self.assertEqual(score_to_level(25), ThreatLevel.LOW)
