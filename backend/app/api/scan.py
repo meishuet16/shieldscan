@@ -12,8 +12,38 @@ from app.services.risk_engine import apply_network_intelligence, apply_risk_engi
 router = APIRouter()
 
 
+IMAGE_RETRIEVAL_QUERY_MAX_CHARS = 1800
+
+
 def sse_event(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
+
+
+def build_retrieval_query(request: ScanRequest, result: ScanResult) -> str:
+    """Build a text-only retrieval query from the scan result.
+
+    Text and URL scans keep the original user-supplied string. Image scans never send
+    base64 to the retrieval layer; they use the already-produced semantic summary and
+    fraud-indicator descriptions instead.
+    """
+    if request.type.value != "image":
+        return request.content
+
+    parts: list[str] = []
+    for value in (result.summary_en, result.summary_bm):
+        cleaned = (value or "").strip()
+        if cleaned and cleaned not in parts:
+            parts.append(cleaned)
+
+    for indicator in result.indicators:
+        category = (indicator.category or "").strip()
+        description = (indicator.description or "").strip()
+        combined = ": ".join(item for item in (category, description) if item)
+        if combined and combined not in parts:
+            parts.append(combined)
+
+    query = " | ".join(parts).strip()
+    return query[:IMAGE_RETRIEVAL_QUERY_MAX_CHARS]
 
 
 async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult) -> ScanResult:
@@ -26,6 +56,19 @@ async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult
         # into SAFE evidence or make the whole fraud scan fail.
         return result
     return apply_network_intelligence(result, signals)
+
+
+async def _retrieve_and_ground(request: ScanRequest, result: ScanResult) -> ScanResult:
+    retrieval_query = build_retrieval_query(request, result)
+    if not retrieval_query:
+        result.rag_matches = []
+        return result
+
+    matches = await asyncio.to_thread(search_threat_intelligence, retrieval_query)
+    result.rag_matches = matches
+    if matches:
+        result = await asyncio.to_thread(synthesize_grounded_report, result, matches)
+    return result
 
 
 async def stream_scan(request: ScanRequest):
@@ -69,15 +112,10 @@ async def stream_scan(request: ScanRequest):
     yield sse_event({"type": "step", "step": 4, "status": "running",
                      "label": "Retrieving and grounding related threat intelligence"})
     t4 = time.time()
-    intel_matches = [] if request.type.value == "image" else await asyncio.to_thread(
-        search_threat_intelligence, request.content
-    )
-    result.rag_matches = intel_matches
-    if intel_matches:
-        result = await asyncio.to_thread(synthesize_grounded_report, result, intel_matches)
+    result = await _retrieve_and_ground(request, result)
     step4_ms = int((time.time() - t4) * 1000)
     yield sse_event({"type": "step", "step": 4, "status": "done",
-                     "label": f"Grounded report with {len(intel_matches)} sourced intelligence match(es)",
+                     "label": f"Grounded report with {len(result.rag_matches or [])} sourced intelligence match(es)",
                      "duration_ms": step4_ms})
 
     yield sse_event({"type": "result", **result.model_dump(mode="json")})
@@ -101,9 +139,4 @@ async def scan(request: ScanRequest):
     result = await asyncio.to_thread(analyze_fraud, request.type.value, request.content)
     result = apply_risk_engine(request.type.value, request.content, result)
     result = await _apply_optional_network_intel(request, result)
-    result.rag_matches = [] if request.type.value == "image" else await asyncio.to_thread(
-        search_threat_intelligence, request.content
-    )
-    if result.rag_matches:
-        result = await asyncio.to_thread(synthesize_grounded_report, result, result.rag_matches)
-    return result
+    return await _retrieve_and_ground(request, result)
