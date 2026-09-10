@@ -66,6 +66,17 @@
     "agency": "BNM"
   },
   {
+    "id": "BNM-NSRC-RESPONSE-GUIDANCE",
+    "title": "What to do after a financial scam",
+    "category": "victim-response-guidance",
+    "summary": "BNM advises scam victims to immediately contact their bank or NSRC 997 and lodge a police report. This is response guidance, not evidence that a scanned item is fraudulent.",
+    "keywords": ["scammed", "ditipu", "nsrc", "997", "bank hotline", "police report", "laporan polis"],
+    "source_name": "Bank Negara Malaysia — Financial Scams FAQ",
+    "source_url": "https://www.bnm.gov.my/faqs/scams",
+    "published_at": null,
+    "agency": "BNM"
+  },
+  {
     "id": "PDRM-SCAM-ALERT",
     "title": "Scam Alert",
     "category": "impersonation-and-social-engineering",
@@ -74,6 +85,17 @@
     "source_name": "Polis Diraja Malaysia — Scam Alert",
     "source_url": "https://www.rmp.gov.my/laman-utama/peringatan/alert-peringatan",
     "published_at": null,
+    "agency": "PDRM"
+  },
+  {
+    "id": "PDRM-BNM-SECURITY-DEPOSIT-2026-07-28",
+    "title": "Scammers impersonating BNM and demanding a security deposit",
+    "category": "impersonation-and-social-engineering",
+    "summary": "PDRM warned about scammers impersonating Bank Negara Malaysia officers and asking victims to pay a so-called security deposit before receiving money. PDRM advises victims not to pay, to stop communication, verify suspicious accounts or phone numbers through Semak Mule, and contact NSRC 997 if victimised.",
+    "keywords": ["bank negara", "bnm", "security deposit", "deposit keselamatan", "rm350", "rm30000", "semak mule", "nsrc", "997"],
+    "source_name": "Polis Diraja Malaysia — PDRM Pesan",
+    "source_url": "https://www.rmp.gov.my/news-detail/2026/07/28/pdrm-pesan-bayar-rm350-untuk-terima-rm30-000-itu-penipuan%21",
+    "published_at": "2026-07-28",
     "agency": "PDRM"
   }
 ]
