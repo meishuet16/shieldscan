@@ -1,10 +1,11 @@
 from typing import Iterable, List
 
 from app.models.scan import RiskEvidence, ScanResult, ThreatLevel
+from app.services.network_intelligence import NetworkIntelSignal
 from app.services.url_intelligence import UrlSignal, analyze_url, url_signal_score
 
 
-SCORING_VERSION = "shieldscan-v2.1"
+SCORING_VERSION = "shieldscan-v2.2"
 
 
 def score_to_level(score: int) -> ThreatLevel:
@@ -32,13 +33,21 @@ def _url_evidence(signals: Iterable[UrlSignal]) -> List[RiskEvidence]:
     ]
 
 
-def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> ScanResult:
-    """Turn model output plus deterministic signals into an auditable result.
+def _network_evidence(signals: Iterable[NetworkIntelSignal]) -> List[RiskEvidence]:
+    return [
+        RiskEvidence(
+            source="network_intelligence",
+            code=signal.code,
+            label=signal.label,
+            score=signal.weight,
+            evidence=signal.evidence,
+        )
+        for signal in signals
+    ]
 
-    v2.1 intentionally treats the LLM score as a supporting signal, not calibrated
-    probability. URL scans receive deterministic lexical/domain evidence. Text/image
-    scans preserve the model score until dedicated classifiers/evaluation are added.
-    """
+
+def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> ScanResult:
+    """Assemble the baseline evidence-based result before optional network metadata."""
     ai_score = max(0, min(int(result.confidence_score), 100))
     result.ai_confidence_score = ai_score
     result.scoring_version = SCORING_VERSION
@@ -50,13 +59,9 @@ def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> Scan
 
     signals = analyze_url(content)
     deterministic = url_signal_score(signals)
-
-    # Deterministic evidence is the primary URL signal. The LLM may contribute up to
-    # 25 points, preventing a confident model answer from overwhelming concrete checks.
     ai_support = round(ai_score * 0.25)
     final_score = min(100, deterministic + ai_support)
 
-    # An explicit brand-impersonation signal should never be presented as SAFE/LOW.
     if any(signal.code == "brand_impersonation" for signal in signals):
         final_score = max(final_score, 65)
 
@@ -64,4 +69,21 @@ def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> Scan
     result.deterministic_score = deterministic
     result.threat_level = score_to_level(final_score)
     result.risk_evidence = _url_evidence(signals)
+    return result
+
+
+def apply_network_intelligence(result: ScanResult, signals: Iterable[NetworkIntelSignal]) -> ScanResult:
+    """Add bounded DNS/TLS/RDAP evidence without allowing network failures to imply safety.
+
+    Network metadata contributes at most 25 additional deterministic points. Positive
+    metadata such as valid TLS and public DNS is displayed for transparency but carries
+    zero negative-risk weight: HTTPS alone is never treated as proof that a site is safe.
+    """
+    signal_list = list(signals)
+    network_points = min(25, sum(max(0, signal.weight) for signal in signal_list))
+    result.deterministic_score = min(100, result.deterministic_score + network_points)
+    result.confidence_score = min(100, result.confidence_score + network_points)
+    result.threat_level = score_to_level(result.confidence_score)
+    result.risk_evidence.extend(_network_evidence(signal_list))
+    result.scoring_version = SCORING_VERSION
     return result
