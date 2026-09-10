@@ -42,4 +42,6 @@ jobs:
       - name: Run tests
         env:
           GEMINI_API_KEY: test-key-not-used-by-unit-tests
-        run: pytest -q
+          PYTHONPATH: ${{ github.workspace }}/backend
+          SHIELDSCAN_RETRIEVAL_PROVIDER: local
+        run: python -m pytest -q
