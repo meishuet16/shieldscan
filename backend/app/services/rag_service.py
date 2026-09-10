@@ -17,14 +17,26 @@ logger = logging.getLogger(__name__)
 THREAT_INTEL_CORPUS = load_threat_intel_corpus()
 
 
+def _threat_pattern_only(matches: List[ThreatIntelMatch], limit: int) -> List[ThreatIntelMatch]:
+    """Keep only records that are valid threat-pattern evidence.
+
+    Response guidance and context-only material may be useful elsewhere in the product,
+    but must not appear as a fraud-pattern match merely because it is semantically close.
+    """
+    return [match for match in matches if match.evidence_role == "threat_pattern"][:limit]
+
+
 def search_local_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
     content_lower = content.lower()
     ranked = []
     for record in THREAT_INTEL_CORPUS:
+        if record.get("evidence_role") != "threat_pattern":
+            continue
         matched_terms = [term for term in record["keywords"] if term.lower() in content_lower]
         if matched_terms:
-            ranked.append((len(matched_terms), record, matched_terms))
-    ranked.sort(key=lambda item: item[0], reverse=True)
+            score = min(1.0, len(matched_terms) / max(3, len(record["keywords"])))
+            ranked.append((score, len(matched_terms), record, matched_terms))
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
     return [
         ThreatIntelMatch(
             id=record["id"],
@@ -34,31 +46,36 @@ def search_local_threat_intelligence(content: str, limit: int = 3) -> List[Threa
             source_url=record["source_url"],
             matched_terms=matched_terms,
             summary=record["summary"],
-            retrieval_method="local-keyword-v1",
+            retrieval_method="local-keyword-v2",
+            evidence_role=record["evidence_role"],
+            retrieval_score=round(score, 4),
         )
-        for _, record, matched_terms in ranked[:limit]
+        for score, _, record, matched_terms in ranked[:limit]
     ]
 
 
 def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
-    """Retrieve sourced threat intelligence through a provider-agnostic interface.
+    """Retrieve sourced threat-pattern intelligence through a provider-agnostic interface.
 
     Providers:
       - lancedb (default): local semantic vector retrieval, no account/API key required
       - vertex: optional managed Vertex AI Search provider
       - local: transparent deterministic keyword fallback
 
-    Retrieval failures never become evidence that content is safe. Any unavailable
-    provider degrades to the provenance-bearing local corpus and logs the condition.
+    Response guidance is intentionally excluded from this function so it cannot be
+    mistaken for evidence that a scanned item resembles a known scam pattern.
     """
     provider = os.getenv("SHIELDSCAN_RETRIEVAL_PROVIDER", "lancedb").strip().lower()
 
     if provider == "lancedb":
         try:
-            matches = search_lancedb_threat_intelligence(content, limit=limit)
+            matches = _threat_pattern_only(
+                search_lancedb_threat_intelligence(content, limit=max(limit * 4, limit)),
+                limit,
+            )
             if matches:
                 return matches
-            logger.info("LanceDB returned no semantic matches; using local fallback")
+            logger.info("LanceDB returned no qualifying threat-pattern matches; using local fallback")
         except LanceDBNotReady as exc:
             logger.info("Local semantic retrieval not ready: %s", exc)
         except Exception:
@@ -66,10 +83,13 @@ def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntel
 
     elif provider == "vertex":
         try:
-            matches = search_vertex_threat_intelligence(content, limit=limit)
+            matches = _threat_pattern_only(
+                search_vertex_threat_intelligence(content, limit=max(limit * 4, limit)),
+                limit,
+            )
             if matches:
                 return matches
-            logger.info("Vertex AI Search returned no sourced matches; using local fallback")
+            logger.info("Vertex AI Search returned no qualifying sourced matches; using local fallback")
         except VertexSearchNotConfigured as exc:
             logger.warning("Vertex AI Search requested but not configured: %s", exc)
         except Exception:
