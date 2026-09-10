@@ -28,9 +28,17 @@ class FraudIndicator(BaseModel):
     severity: str
 
 
+class RiskEvidence(BaseModel):
+    source: str
+    code: str
+    label: str
+    score: int
+    evidence: str
+
+
 class ScanResult(BaseModel):
     threat_level: ThreatLevel
-    confidence_score: int  # 0-100
+    confidence_score: int  # final evidence-based risk score, 0-100
     summary_en: str
     summary_bm: str
     indicators: List[FraudIndicator]
@@ -38,6 +46,10 @@ class ScanResult(BaseModel):
     recommendation_bm: str
     rag_matches: Optional[List[str]] = Field(default_factory=list)
     scan_duration_ms: int
+    ai_confidence_score: Optional[int] = None
+    deterministic_score: int = 0
+    risk_evidence: List[RiskEvidence] = Field(default_factory=list)
+    scoring_version: str = "shieldscan-v2"
 
 
 class AgentStep(BaseModel):
