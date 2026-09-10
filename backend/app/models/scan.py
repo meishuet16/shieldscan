@@ -45,6 +45,8 @@ class ThreatIntelMatch(BaseModel):
     matched_terms: List[str] = Field(default_factory=list)
     summary: str
     retrieval_method: str
+    evidence_role: str = "threat_pattern"
+    retrieval_score: Optional[float] = None
 
 
 class ScanResult(BaseModel):
