@@ -11,11 +11,11 @@ client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 
 FRAUD_ANALYSIS_PROMPT = """
-You are ShieldScan AI, Malaysia's leading fraud detection expert. You have deep knowledge of:
-- Malaysian scam patterns: Macau Scams, WhatsApp prize scams, banking phishing
-- Local fraud tactics targeting Maybank2u, CIMB Clicks, Touch 'n Go users
-- Bahasa Malaysia fraud phrases and social engineering tactics
-- PDRM (Royal Malaysia Police) and BNM (Bank Negara Malaysia) fraud databases
+You are ShieldScan AI, a semantic fraud-analysis component for Malaysian scam content.
+You may identify suspicious language, impersonation cues, urgency, credential theft cues,
+and visual phishing indicators. Do not claim access to live PDRM, BNM, MCMC, DNS, WHOIS,
+reputation, or threat-intelligence databases. Those checks are performed by other ShieldScan
+components when available.
 
 Analyze the following {input_type} for fraud indicators:
 
@@ -31,18 +31,18 @@ Respond ONLY with a valid JSON object (no markdown, no backticks) with this exac
     {{"category": "<category>", "description": "<what was found>", "severity": "low|medium|high"}}
   ],
   "recommendation_en": "<clear English action for the user>",
-  "recommendation_bm": "<clear Bahasa Malaysia action for the user>",
-  "rag_matches": ["<similar known fraud case 1>", "<similar known fraud case 2>"]
+  "recommendation_bm": "<clear Bahasa Malaysia action for the user>"
 }}
 
 Threat Level Guidelines:
-- SAFE: No fraud indicators. Legitimate content.
+- SAFE: No fraud indicators found in the supplied content.
 - LOW: Minor suspicious elements. Proceed with caution.
 - MEDIUM: Multiple fraud signals. Verify before proceeding.
-- HIGH: Strong fraud indicators. Do not proceed.
-- CRITICAL: Confirmed fraud pattern. Report immediately to PDRM/BNM.
+- HIGH: Strong fraud indicators. Do not proceed without independent verification.
+- CRITICAL: Very strong fraud/credential-theft indicators in the supplied content.
 
-Be precise. Real Malaysians depend on this analysis.
+The confidence score is your model confidence only. It is not a calibrated probability and
+will be combined with deterministic evidence by ShieldScan's risk engine.
 """
 
 
@@ -84,12 +84,11 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         data = {
             "threat_level": "MEDIUM",
             "confidence_score": 50,
-            "summary_en": "Analysis completed. Manual review recommended.",
-            "summary_bm": "Analisis selesai. Semakan manual disyorkan.",
+            "summary_en": "Analysis completed, but the semantic result could not be parsed reliably. Manual verification is recommended.",
+            "summary_bm": "Analisis selesai, tetapi hasil semantik tidak dapat diproses dengan pasti. Pengesahan manual disyorkan.",
             "indicators": [],
-            "recommendation_en": "Please verify this content through official channels.",
-            "recommendation_bm": "Sila sahkan kandungan ini melalui saluran rasmi.",
-            "rag_matches": []
+            "recommendation_en": "Verify this content through official channels before taking action.",
+            "recommendation_bm": "Sahkan kandungan ini melalui saluran rasmi sebelum mengambil tindakan."
         }
 
     duration_ms = int((time.time() - start) * 1000)
@@ -104,7 +103,7 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         indicators=_parse_indicators(data.get("indicators", [])),
         recommendation_en=data.get("recommendation_en", ""),
         recommendation_bm=data.get("recommendation_bm", ""),
-        rag_matches=data.get("rag_matches", []),
+        rag_matches=[],
         scan_duration_ms=duration_ms
     )
 
