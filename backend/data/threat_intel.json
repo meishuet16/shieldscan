@@ -8,7 +8,8 @@
     "source_name": "Bank Negara Malaysia — Financial Fraud Alerts",
     "source_url": "https://www.bnm.gov.my/financial-fraud-alerts",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-MOBILE-APP-SCAM",
@@ -19,7 +20,8 @@
     "source_name": "Bank Negara Malaysia — Financial Fraud Alerts",
     "source_url": "https://www.bnm.gov.my/financial-fraud-alerts",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-MULE-ACCOUNT",
@@ -30,7 +32,8 @@
     "source_name": "Bank Negara Malaysia — Mule Account",
     "source_url": "https://www.bnm.gov.my/muleaccount",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-FCA-GENERAL",
@@ -41,7 +44,8 @@
     "source_name": "Bank Negara Malaysia — Financial Consumer Alert List",
     "source_url": "https://www.bnm.gov.my/financial-consumer-alert-list",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-FCA-2026-08-03",
@@ -52,7 +56,8 @@
     "source_name": "Bank Negara Malaysia — Financial Consumer Alert update",
     "source_url": "https://www.bnm.gov.my/-/fca-update-030826-bm",
     "published_at": "2026-08-03",
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-BNM-IMPERSONATION",
@@ -63,7 +68,8 @@
     "source_name": "Bank Negara Malaysia — Fraud and Scam Notices",
     "source_url": "https://www.bnm.gov.my/fraud-and-scam-notices",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "BNM-NSRC-RESPONSE-GUIDANCE",
@@ -74,7 +80,8 @@
     "source_name": "Bank Negara Malaysia — Financial Scams FAQ",
     "source_url": "https://www.bnm.gov.my/faqs/scams",
     "published_at": null,
-    "agency": "BNM"
+    "agency": "BNM",
+    "evidence_role": "response_guidance"
   },
   {
     "id": "PDRM-SCAM-ALERT",
@@ -85,7 +92,8 @@
     "source_name": "Polis Diraja Malaysia — Scam Alert",
     "source_url": "https://www.rmp.gov.my/laman-utama/peringatan/alert-peringatan",
     "published_at": null,
-    "agency": "PDRM"
+    "agency": "PDRM",
+    "evidence_role": "threat_pattern"
   },
   {
     "id": "PDRM-BNM-SECURITY-DEPOSIT-2026-07-28",
@@ -96,6 +104,19 @@
     "source_name": "Polis Diraja Malaysia — PDRM Pesan",
     "source_url": "https://www.rmp.gov.my/news-detail/2026/07/28/pdrm-pesan-bayar-rm350-untuk-terima-rm30-000-itu-penipuan%21",
     "published_at": "2026-07-28",
-    "agency": "PDRM"
+    "agency": "PDRM",
+    "evidence_role": "threat_pattern"
+  },
+  {
+    "id": "MCMC-SCAM-SMS-BLOCKING-2023-06-24",
+    "title": "MCMC scam-SMS blocking indicators",
+    "category": "phishing-and-scam-sms",
+    "summary": "MCMC identified scam-prone SMS content patterns including messages that direct users to click links, request personal information, or provide phone numbers to contact. These patterns are useful as contextual threat indicators and do not by themselves prove a specific message is fraudulent.",
+    "keywords": ["sms", "click link", "pautan", "maklumat peribadi", "personal information", "phone number", "nombor telefon", "phishing"],
+    "source_name": "Malaysian Communications and Multimedia Commission — Scam SMS Blocking Notice",
+    "source_url": "https://www.mcmc.gov.my/skmmgovmy/media/General/PressRelease/NOTIS-AWAM-Sekatan-SMS-Fasa-Akhir.pdf",
+    "published_at": "2023-06-24",
+    "agency": "MCMC",
+    "evidence_role": "threat_pattern"
   }
 ]
