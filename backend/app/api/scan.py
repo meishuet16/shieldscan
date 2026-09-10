@@ -5,8 +5,9 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from app.models.scan import ScanRequest, ScanResult
 from app.services.gemini_service import analyze_fraud, synthesize_grounded_report
+from app.services.network_intelligence import analyze_network_url
 from app.services.rag_service import search_threat_intelligence
-from app.services.risk_engine import apply_risk_engine
+from app.services.risk_engine import apply_network_intelligence, apply_risk_engine
 
 router = APIRouter()
 
@@ -15,10 +16,21 @@ def sse_event(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
 
-async def stream_scan(request: ScanRequest):
-    """Four-stage fraud analysis pipeline with auditable risk scoring and grounded RAG."""
+async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult) -> ScanResult:
+    if request.type.value != "url":
+        return result
+    try:
+        signals = await asyncio.to_thread(analyze_network_url, request.content)
+    except Exception:
+        # Network metadata is supplementary. Provider/DNS/TLS failures must not turn
+        # into SAFE evidence or make the whole fraud scan fail.
+        return result
+    return apply_network_intelligence(result, signals)
 
-    # Step 1: Validate/classify input
+
+async def stream_scan(request: ScanRequest):
+    """Four-stage fraud analysis pipeline with auditable scoring and grounded RAG."""
+
     yield sse_event({"type": "step", "step": 1, "status": "running",
                      "label": "Preparing input"})
     input_label = {"url": "URL", "text": "Text Message", "image": "Image/Screenshot"}
@@ -26,7 +38,6 @@ async def stream_scan(request: ScanRequest):
                      "label": f"Input type: {input_label.get(request.type.value, 'Unknown')}",
                      "duration_ms": 0})
 
-    # Step 2: Gemini semantic/multimodal analysis
     yield sse_event({"type": "step", "step": 2, "status": "running",
                      "label": "Running semantic fraud analysis"})
     t2 = time.time()
@@ -45,22 +56,19 @@ async def stream_scan(request: ScanRequest):
         yield sse_event({"type": "done"})
         return
 
-    # Step 3: Deterministic intelligence + evidence aggregation
     yield sse_event({"type": "step", "step": 3, "status": "running",
-                     "label": "Evaluating deterministic security signals"})
+                     "label": "Evaluating deterministic and network security signals"})
     t3 = time.time()
     result = apply_risk_engine(request.type.value, request.content, result)
+    result = await _apply_optional_network_intel(request, result)
     scoring_ms = int((time.time() - t3) * 1000)
     yield sse_event({"type": "step", "step": 3, "status": "done",
                      "label": f"Risk score assembled from {len(result.risk_evidence)} evidence signal(s)",
                      "duration_ms": scoring_ms})
 
-    # Step 4: provenance-bearing retrieval + grounded report synthesis.
     yield sse_event({"type": "step", "step": 4, "status": "running",
                      "label": "Retrieving and grounding related threat intelligence"})
     t4 = time.time()
-    # Raw image base64 is intentionally not retrieved directly. The visual semantic
-    # analysis remains useful, but image-to-text retrieval needs a dedicated query step.
     intel_matches = [] if request.type.value == "image" else await asyncio.to_thread(
         search_threat_intelligence, request.content
     )
@@ -78,7 +86,6 @@ async def stream_scan(request: ScanRequest):
 
 @router.post("/scan/stream")
 async def scan_stream(request: ScanRequest):
-    """Streaming SSE endpoint for real-time scan progress."""
     return StreamingResponse(
         stream_scan(request),
         media_type="text/event-stream",
@@ -91,9 +98,9 @@ async def scan_stream(request: ScanRequest):
 
 @router.post("/scan", response_model=ScanResult)
 async def scan(request: ScanRequest):
-    """Standard JSON endpoint for a complete scan."""
     result = await asyncio.to_thread(analyze_fraud, request.type.value, request.content)
     result = apply_risk_engine(request.type.value, request.content, result)
+    result = await _apply_optional_network_intel(request, result)
     result.rag_matches = [] if request.type.value == "image" else await asyncio.to_thread(
         search_threat_intelligence, request.content
     )
