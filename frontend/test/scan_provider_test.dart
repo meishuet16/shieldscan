@@ -19,6 +19,48 @@ void main() {
       expect(result.ragMatches, isEmpty);
     });
 
+    test('prefers explicit risk and threat intelligence fields over legacy aliases', () {
+      final result = ScanResult.fromJson({
+        'threat_level': 'HIGH',
+        'risk_score': 82,
+        'confidence_score': 12,
+        'summary_en': 'Review needed.',
+        'summary_bm': 'Semakan diperlukan.',
+        'recommendation_en': 'Verify through official channels.',
+        'recommendation_bm': 'Sahkan melalui saluran rasmi.',
+        'threat_intel_matches': [
+          {
+            'id': 'BNM-NEW',
+            'title': 'Primary field record',
+            'category': 'phishing',
+            'source_name': 'Bank Negara Malaysia',
+            'matched_terms': ['login'],
+            'summary': 'Primary threat intelligence field.',
+            'retrieval_method': 'local-keyword-v3',
+            'evidence_role': 'threat_pattern',
+          }
+        ],
+        'rag_matches': [
+          {
+            'id': 'LEGACY-OLD',
+            'title': 'Legacy field record',
+            'category': 'legacy',
+            'source_name': 'Legacy source',
+            'matched_terms': [],
+            'summary': 'Should not win when primary field exists.',
+            'retrieval_method': 'legacy',
+            'evidence_role': 'threat_pattern',
+          }
+        ],
+        'scan_duration_ms': 100,
+      });
+
+      expect(result.riskScore, 82);
+      expect(result.confidenceScore, 82);
+      expect(result.threatIntelMatches.single.id, 'BNM-NEW');
+      expect(result.ragMatches.single.id, 'BNM-NEW');
+    });
+
     test('parses deterministic and provenance-bearing evidence', () {
       final result = ScanResult.fromJson({
         'threat_level': 'HIGH',
@@ -67,6 +109,7 @@ void main() {
       });
 
       expect(result.confidenceScore, 78);
+      expect(result.riskScore, 78);
       expect(result.aiConfidenceScore, 61);
       expect(result.deterministicScore, 70);
       expect(result.scoringVersion, 'shieldscan-v2.2');
@@ -129,6 +172,7 @@ void main() {
       provider.handleSseEvent({
         'type': 'result',
         'threat_level': 'HIGH',
+        'risk_score': 91,
         'confidence_score': 91,
         'summary_en': 'High risk.',
         'summary_bm': 'Risiko tinggi.',
@@ -136,6 +180,7 @@ void main() {
         'risk_evidence': [],
         'recommendation_en': 'Do not proceed.',
         'recommendation_bm': 'Jangan teruskan.',
+        'threat_intel_matches': [],
         'rag_matches': [],
         'scan_duration_ms': 1400,
       });
