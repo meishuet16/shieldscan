@@ -11,6 +11,10 @@ venv/
 dist/
 build/
 
+# Local retrieval data / model caches
+backend/data/lancedb/
+backend/.cache/
+
 # Flutter
 frontend/.dart_tool/
 frontend/.flutter-plugins

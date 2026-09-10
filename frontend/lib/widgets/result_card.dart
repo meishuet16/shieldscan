@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/scan_provider.dart';
 import '../theme/app_theme.dart';
@@ -45,11 +46,19 @@ class _ResultCardState extends State<ResultCard> {
                     ?.copyWith(color: AppColors.muted),
               ),
             ),
+            if (result.riskEvidence.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _Section(
+                icon: Icons.rule_rounded,
+                title: 'Verification Evidence',
+                child: _EvidenceGroups(evidence: result.riskEvidence),
+              ),
+            ],
             if (result.indicators.isNotEmpty) ...[
               const SizedBox(height: 14),
               _Section(
                 icon: Icons.warning_amber_rounded,
-                title: 'Fraud Indicators',
+                title: 'Semantic Fraud Indicators',
                 child: Column(
                   children: result.indicators
                       .map((indicator) => _IndicatorRow(indicator: indicator))
@@ -61,20 +70,17 @@ class _ResultCardState extends State<ResultCard> {
               const SizedBox(height: 14),
               _Section(
                 icon: Icons.manage_search_rounded,
-                title: 'Malaysia Pattern Matches',
+                title: 'Related Official Threat Intelligence',
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: result.ragMatches
-                      .map((match) => _EvidenceLine(text: match))
+                      .map((match) => _ThreatIntelCard(match: match))
                       .toList(),
                 ),
               ),
             ],
             const SizedBox(height: 14),
             _Recommendation(
-              text: _showBm
-                  ? result.recommendationBm
-                  : result.recommendationEn,
+              text: _showBm ? result.recommendationBm : result.recommendationEn,
             ),
             const SizedBox(height: 14),
             _ReportActions(level: result.threatLevel),
@@ -82,7 +88,7 @@ class _ResultCardState extends State<ResultCard> {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'Scanned in ${(result.scanDurationMs / 1000).toStringAsFixed(1)}s',
+                'Scanned in ${(result.scanDurationMs / 1000).toStringAsFixed(1)}s · ${result.scoringVersion}',
                 style: Theme.of(context)
                     .textTheme
                     .labelMedium
@@ -134,28 +140,17 @@ class _RiskHeader extends StatelessWidget {
               ),
             ],
           );
-          final confidence = _ConfidenceScore(
-            value: result.confidenceScore,
-            color: level.color,
-          );
+          final riskScore = _RiskScore(value: result.confidenceScore, color: level.color);
 
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                riskText,
-                const SizedBox(height: 12),
-                confidence,
-              ],
+              children: [riskText, const SizedBox(height: 12), riskScore],
             );
           }
 
           return Row(
-            children: [
-              Expanded(child: riskText),
-              const SizedBox(width: 16),
-              confidence,
-            ],
+            children: [Expanded(child: riskText), const SizedBox(width: 16), riskScore],
           );
         },
       ),
@@ -163,11 +158,11 @@ class _RiskHeader extends StatelessWidget {
   }
 }
 
-class _ConfidenceScore extends StatelessWidget {
+class _RiskScore extends StatelessWidget {
   final int value;
   final Color color;
 
-  const _ConfidenceScore({required this.value, required this.color});
+  const _RiskScore({required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -183,13 +178,13 @@ class _ConfidenceScore extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '$value%',
+            '$value',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w900,
                 ),
           ),
-          Text('confidence', style: Theme.of(context).textTheme.labelMedium),
+          Text('risk score / 100', style: Theme.of(context).textTheme.labelMedium),
         ],
       ),
     );
@@ -200,10 +195,7 @@ class _LanguageSwitch extends StatelessWidget {
   final bool showBm;
   final ValueChanged<bool> onChanged;
 
-  const _LanguageSwitch({
-    required this.showBm,
-    required this.onChanged,
-  });
+  const _LanguageSwitch({required this.showBm, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -213,16 +205,8 @@ class _LanguageSwitch extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text('Report language', style: Theme.of(context).textTheme.labelMedium),
-        _LangButton(
-          label: 'English',
-          selected: !showBm,
-          onTap: () => onChanged(false),
-        ),
-        _LangButton(
-          label: 'Bahasa Malaysia',
-          selected: showBm,
-          onTap: () => onChanged(true),
-        ),
+        _LangButton(label: 'English', selected: !showBm, onTap: () => onChanged(false)),
+        _LangButton(label: 'Bahasa Malaysia', selected: showBm, onTap: () => onChanged(true)),
       ],
     );
   }
@@ -233,11 +217,7 @@ class _LangButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _LangButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _LangButton({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -249,15 +229,14 @@ class _LangButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.cyan.withOpacity(0.12) : AppColors.ink,
           borderRadius: BorderRadius.circular(AppRadii.small),
-          border: Border.all(
-            color: selected ? AppColors.cyan : AppColors.stroke,
-          ),
+          border: Border.all(color: selected ? AppColors.cyan : AppColors.stroke),
         ),
         child: Text(
           label,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: selected ? AppColors.cyan : AppColors.muted,
-              ),
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: selected ? AppColors.cyan : AppColors.muted),
         ),
       ),
     );
@@ -269,11 +248,7 @@ class _Section extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _Section({
-    required this.icon,
-    required this.title,
-    required this.child,
-  });
+  const _Section({required this.icon, required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -290,6 +265,178 @@ class _Section extends StatelessWidget {
         const SizedBox(height: 8),
         child,
       ],
+    );
+  }
+}
+
+class _EvidenceGroups extends StatelessWidget {
+  final List<RiskEvidence> evidence;
+
+  const _EvidenceGroups({required this.evidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final urlStructure = evidence.where((item) => item.source == 'url_intelligence').toList();
+    final network = evidence
+        .where((item) => item.source == 'network_intelligence' && item.code != 'domain_age')
+        .toList();
+    final registration = evidence
+        .where((item) => item.source == 'network_intelligence' && item.code == 'domain_age')
+        .toList();
+    final knownSources = {...urlStructure, ...network, ...registration};
+    final other = evidence.where((item) => !knownSources.contains(item)).toList();
+
+    final groups = <Widget>[];
+    void addGroup(String title, String note, IconData icon, List<RiskEvidence> items) {
+      if (items.isEmpty) return;
+      if (groups.isNotEmpty) groups.add(const SizedBox(height: 10));
+      groups.add(_EvidenceGroup(title: title, note: note, icon: icon, items: items));
+    }
+
+    addGroup(
+      'URL structure',
+      'Signals visible directly in the submitted address.',
+      Icons.link_rounded,
+      urlStructure,
+    );
+    addGroup(
+      'Network verification',
+      'DNS and TLS metadata. Valid HTTPS is context, not proof that a site is safe.',
+      Icons.public_rounded,
+      network,
+    );
+    addGroup(
+      'Domain registration',
+      'Registration age from RDAP when the provider returns usable metadata.',
+      Icons.event_available_rounded,
+      registration,
+    );
+    addGroup(
+      'Other evidence',
+      'Additional deterministic evidence used by the scoring engine.',
+      Icons.fact_check_outlined,
+      other,
+    );
+
+    return Column(children: groups);
+  }
+}
+
+class _EvidenceGroup extends StatelessWidget {
+  final String title;
+  final String note;
+  final IconData icon;
+  final List<RiskEvidence> items;
+
+  const _EvidenceGroup({
+    required this.title,
+    required this.note,
+    required this.icon,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: AppColors.cyan),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            note,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.faint),
+          ),
+          const SizedBox(height: 9),
+          ...items.map((item) => _RiskEvidenceRow(evidence: item)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskEvidenceRow extends StatelessWidget {
+  final RiskEvidence evidence;
+
+  const _RiskEvidenceRow({required this.evidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final contributesRisk = evidence.score > 0;
+    final badgeColor = contributesRisk ? AppColors.orange : AppColors.cyan;
+    final badge = contributesRisk ? '+${evidence.score}' : 'INFO';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: AppColors.stroke),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(AppRadii.small),
+            ),
+            child: Text(
+              badge,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelMedium
+                  ?.copyWith(color: badgeColor, fontSize: 10),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  evidence.label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.text,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                if (evidence.evidence.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    evidence.evidence,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -327,10 +474,7 @@ class _IndicatorRow extends StatelessWidget {
             ),
             child: Text(
               indicator.severity.toUpperCase(),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(color: color, fontSize: 10),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color, fontSize: 10),
             ),
           ),
           const SizedBox(width: 10),
@@ -348,10 +492,7 @@ class _IndicatorRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   indicator.description,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.muted),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
                 ),
               ],
             ),
@@ -362,29 +503,84 @@ class _IndicatorRow extends StatelessWidget {
   }
 }
 
-class _EvidenceLine extends StatelessWidget {
-  final String text;
+class _ThreatIntelCard extends StatelessWidget {
+  final ThreatIntelMatch match;
 
-  const _EvidenceLine({required this.text});
+  const _ThreatIntelCard({required this.match});
+
+  Future<void> _openSource() async {
+    final value = match.sourceUrl;
+    if (value == null || value.isEmpty) return;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !const {'https', 'http'}.contains(uri.scheme)) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Row(
+    final hasSource = match.sourceUrl?.isNotEmpty ?? false;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: AppColors.cyan.withOpacity(0.22)),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.circle, color: AppColors.cyan, size: 7),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.muted),
-            ),
+          Text(
+            match.title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.text,
+                  fontWeight: FontWeight.w800,
+                ),
           ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 7,
+            runSpacing: 5,
+            children: [
+              Text(
+                match.sourceName,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.cyan),
+              ),
+              if (match.category.isNotEmpty)
+                Text(
+                  '· ${match.category}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.faint),
+                ),
+            ],
+          ),
+          if (match.summary.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              match.summary,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+            ),
+          ],
+          if (match.matchedTerms.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              'Matched: ${match.matchedTerms.take(5).join(', ')}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.faint),
+            ),
+          ],
+          if (hasSource) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _openSource,
+              icon: const Icon(Icons.open_in_new_rounded, size: 15),
+              label: const Text('View official source'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.cyan,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 32),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -417,18 +613,12 @@ class _Recommendation extends StatelessWidget {
               children: [
                 Text(
                   'Recommended Action',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelMedium
-                      ?.copyWith(color: AppColors.orange),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.orange),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   text,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.text),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.text),
                 ),
               ],
             ),
@@ -450,37 +640,7 @@ class _ReportActions extends StatelessWidget {
 
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.flag_rounded, size: 18),
-            label: const Text('Report to PDRM / BNM'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.panel),
-              ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text(
-                    'Report queued for the demo incident workflow.',
-                  ),
-                  backgroundColor: AppColors.green,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.panel),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        if (urgent) ...[
-          const SizedBox(height: 10),
+        if (urgent)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -490,15 +650,11 @@ class _ReportActions extends StatelessWidget {
               border: Border.all(color: AppColors.red.withOpacity(0.22)),
             ),
             child: Text(
-              'Malaysia hotlines: PDRM Cybercrime 03-2266 2222 · BNM 1-300-88-5465 · MCMC 1-800-188-030 · NSRC 997',
+              'If money was transferred or credentials were exposed, contact your bank immediately and call NSRC 997. Lodge a police report as soon as possible.',
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium
-                  ?.copyWith(color: AppColors.muted, height: 1.5),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.muted, height: 1.5),
             ),
           ),
-        ],
       ],
     );
   }
@@ -509,17 +665,13 @@ class _LevelView {
   final String description;
   final Color color;
 
-  const _LevelView({
-    required this.label,
-    required this.description,
-    required this.color,
-  });
+  const _LevelView({required this.label, required this.description, required this.color});
 
   factory _LevelView.fromThreat(ThreatLevel level) {
     return switch (level) {
       ThreatLevel.safe => const _LevelView(
           label: 'SAFE',
-          description: 'No fraud indicators detected.',
+          description: 'No significant fraud indicators detected in this scan.',
           color: AppColors.green,
         ),
       ThreatLevel.low => const _LevelView(
@@ -529,17 +681,17 @@ class _LevelView {
         ),
       ThreatLevel.medium => const _LevelView(
           label: 'MEDIUM RISK',
-          description: 'Multiple signals need verification.',
+          description: 'Multiple signals need independent verification.',
           color: AppColors.orange,
         ),
       ThreatLevel.high => const _LevelView(
           label: 'HIGH RISK',
-          description: 'Strong fraud indicators. Do not proceed.',
+          description: 'Strong fraud indicators. Do not proceed without verification.',
           color: AppColors.red,
         ),
       ThreatLevel.critical => const _LevelView(
           label: 'CRITICAL',
-          description: 'Confirmed fraud pattern. Report immediately.',
+          description: 'Very strong fraud indicators. Stop and verify through official channels.',
           color: AppColors.red,
         ),
     };

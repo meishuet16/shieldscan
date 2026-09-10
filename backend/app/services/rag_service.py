@@ -1,80 +1,93 @@
+import logging
 import os
 from typing import List
 
-# Known Malaysian fraud patterns database
-# In production, this connects to Vertex AI Search with PDRM/BNM/MCMC datasets
-MALAYSIA_FRAUD_DB = [
-    {
-        "id": "PDRM-2024-001",
-        "type": "Macau Scam",
-        "pattern": "impersonation of police/bank officer",
-        "keywords": ["polis", "tahan", "akaun", "sekat", "BNM", "transfer"],
-        "source": "PDRM Cybercrime Division"
-    },
-    {
-        "id": "BNM-2024-045",
-        "type": "Banking Phishing",
-        "pattern": "fake Maybank2u / CIMB login page",
-        "keywords": ["maybank2u", "cimb", "verify", "suspend", "login", "secure-maybank"],
-        "source": "Bank Negara Malaysia"
-    },
-    {
-        "id": "MCMC-2024-112",
-        "type": "WhatsApp Prize Scam",
-        "pattern": "fake prize/lottery notification",
-        "keywords": ["tahniah", "menang", "hadiah", "RM", "klik", "tuntut", "lucky winner"],
-        "source": "MCMC Consumer Forum"
-    },
-    {
-        "id": "PDRM-2024-078",
-        "type": "Investment Scam",
-        "pattern": "fake high-return investment platform",
-        "keywords": ["untung", "pelaburan", "ROI", "forex", "crypto", "guaranteed return"],
-        "source": "PDRM Commercial Crime Investigation Department"
-    },
-    {
-        "id": "BNM-2024-201",
-        "type": "Loan Scam",
-        "pattern": "fake personal loan offer",
-        "keywords": ["pinjaman", "loan", "approval", "no credit check", "bayar deposit"],
-        "source": "Bank Negara Malaysia"
-    },
-]
+from app.models.scan import ThreatIntelMatch
+from app.services.corpus_service import load_threat_intel_corpus
+from app.services.lancedb_service import LanceDBNotReady, search_lancedb_threat_intelligence
+from app.services.vertex_search_service import (
+    VertexSearchNotConfigured,
+    search_vertex_threat_intelligence,
+)
+
+logger = logging.getLogger(__name__)
+
+THREAT_INTEL_CORPUS = load_threat_intel_corpus()
+LOCAL_KEYWORD_MIN_SCORE = float(os.getenv("SHIELDSCAN_LOCAL_KEYWORD_MIN_SCORE", "0.20"))
 
 
-def search_rag_database(content: str, threat_level: str) -> List[str]:
-    """
-    Search the Malaysian fraud database for matching patterns.
-    In production: connects to Vertex AI Search engine.
-    
-    Returns list of matching fraud case descriptions.
-    """
-    matches = []
+def _threat_pattern_only(matches: List[ThreatIntelMatch], limit: int) -> List[ThreatIntelMatch]:
+    return [match for match in matches if match.evidence_role == "threat_pattern"][:limit]
+
+
+def search_local_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
     content_lower = content.lower()
+    ranked = []
+    for record in THREAT_INTEL_CORPUS:
+        if record.get("evidence_role") != "threat_pattern":
+            continue
+        matched_terms = [term for term in record["keywords"] if term.lower() in content_lower]
+        if not matched_terms:
+            continue
+        score = min(1.0, len(matched_terms) / max(3, len(record["keywords"])))
+        if score < LOCAL_KEYWORD_MIN_SCORE:
+            continue
+        ranked.append((score, len(matched_terms), record, matched_terms))
 
-    # Check for Vertex AI Search integration
-    vertex_engine_id = os.environ.get("VERTEX_SEARCH_ENGINE_ID", "")
-    if vertex_engine_id:
-        # TODO: Integrate Vertex AI Search Discovery Engine
-        # from google.cloud import discoveryengine_v1beta
-        # client = discoveryengine_v1beta.SearchServiceClient()
-        # ... vertex AI search call
-        pass
-
-    # Local pattern matching fallback
-    for case in MALAYSIA_FRAUD_DB:
-        matched_keywords = [kw for kw in case["keywords"] if kw.lower() in content_lower]
-        if matched_keywords:
-            matches.append(
-                f"[{case['id']}] {case['type']}: {case['pattern']} "
-                f"(Source: {case['source']})"
-            )
-
-    # If HIGH/CRITICAL threat, always add general advisory
-    if threat_level in ["HIGH", "CRITICAL"] and not matches:
-        matches.append(
-            "[ADVISORY] Report to PDRM Cybercrime: 03-2266 2222 or "
-            "BNM BNMTELELINK: 1-300-88-5465"
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [
+        ThreatIntelMatch(
+            id=record["id"],
+            title=record["title"],
+            category=record["category"],
+            source_name=record["source_name"],
+            source_url=record["source_url"],
+            matched_terms=matched_terms,
+            summary=record["summary"],
+            retrieval_method="local-keyword-v3",
+            evidence_role=record["evidence_role"],
+            retrieval_score=round(score, 4),
         )
+        for score, _, record, matched_terms in ranked[:limit]
+    ]
 
-    return matches[:3]  # Return top 3 matches
+
+def search_threat_intelligence(content: str, limit: int = 3) -> List[ThreatIntelMatch]:
+    provider = os.getenv("SHIELDSCAN_RETRIEVAL_PROVIDER", "lancedb").strip().lower()
+
+    if provider == "lancedb":
+        try:
+            matches = _threat_pattern_only(
+                search_lancedb_threat_intelligence(content, limit=max(limit * 4, limit)),
+                limit,
+            )
+            if matches:
+                return matches
+            logger.info("LanceDB returned no qualifying threat-pattern matches; using local fallback")
+        except LanceDBNotReady as exc:
+            logger.info("Local semantic retrieval not ready: %s", exc)
+        except Exception:
+            logger.exception("LanceDB retrieval failed; using local fallback")
+
+    elif provider == "vertex":
+        try:
+            matches = _threat_pattern_only(
+                search_vertex_threat_intelligence(content, limit=max(limit * 4, limit)),
+                limit,
+            )
+            if matches:
+                return matches
+            logger.info("Vertex AI Search returned no qualifying sourced matches; using local fallback")
+        except VertexSearchNotConfigured as exc:
+            logger.warning("Vertex AI Search requested but not configured: %s", exc)
+        except Exception:
+            logger.exception("Vertex AI Search failed; using local fallback")
+
+    elif provider != "local":
+        logger.warning("Unknown retrieval provider '%s'; using local fallback", provider)
+
+    return search_local_threat_intelligence(content, limit=limit)
+
+
+def search_rag_database(content: str, threat_level: str | None = None) -> List[ThreatIntelMatch]:
+    return search_threat_intelligence(content)

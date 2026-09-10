@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements-rag.txt && python scripts/build_threat_index.py
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     autoDeployTrigger: commit
@@ -14,7 +14,9 @@ services:
         value: 3.12.4
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
+      - key: SHIELDSCAN_RETRIEVAL_PROVIDER
+        value: lancedb
+      - key: SHIELDSCAN_LANCEDB_PATH
+        value: data/lancedb
       - key: GEMINI_API_KEY
-        sync: false
-      - key: VERTEX_SEARCH_ENGINE_ID
         sync: false

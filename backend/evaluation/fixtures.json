@@ -1,0 +1,64 @@
+{
+  "url_cases": [
+    {
+      "id": "official-maybank",
+      "url": "https://www.maybank2u.com.my/home/m2u/common/login.do",
+      "expected_max_deterministic_score": 12,
+      "must_not_have": ["brand_impersonation"]
+    },
+    {
+      "id": "maybank-lookalike",
+      "url": "https://maybank2u-secure-login.xyz/verify/account",
+      "expected_min_deterministic_score": 65,
+      "must_have": ["brand_impersonation"]
+    },
+    {
+      "id": "cimb-lookalike",
+      "url": "http://cimbclicks-login-support.top/verify",
+      "expected_min_deterministic_score": 59,
+      "must_have": ["brand_impersonation", "no_https"]
+    },
+    {
+      "id": "plain-public-site",
+      "url": "https://www.utm.my/",
+      "expected_max_deterministic_score": 12,
+      "must_not_have": ["brand_impersonation"]
+    },
+    {
+      "id": "ip-credential-bait",
+      "url": "http://192.0.2.10/login/verify",
+      "expected_min_deterministic_score": 32,
+      "must_have": ["ip_hostname", "no_https"]
+    }
+  ],
+  "retrieval_cases": [
+    {
+      "id": "phishing-positive",
+      "text": "Your Maybank2u account is suspended. Login and verify your banking credentials now.",
+      "expect_match": true,
+      "expected_categories": ["phishing", "impersonation-and-phishing"]
+    },
+    {
+      "id": "investment-positive",
+      "text": "Guaranteed forex investment return, high untung, licensed crypto pelaburan platform.",
+      "expect_match": true,
+      "expected_categories": ["investment-scam", "unauthorised-financial-entity", "clone-entity"]
+    },
+    {
+      "id": "response-guidance-is-not-threat-evidence",
+      "text": "I was scammed, should I call NSRC 997 and make a police report?",
+      "expect_match": false,
+      "forbidden_categories": ["victim-response-guidance"]
+    },
+    {
+      "id": "benign-lunch",
+      "text": "Lunch at 12.30 near the library, then we go to class.",
+      "expect_match": false
+    },
+    {
+      "id": "benign-bank-discussion",
+      "text": "Our assignment compares Malaysian bank mobile app usability and login UX.",
+      "expect_match": false
+    }
+  ]
+}

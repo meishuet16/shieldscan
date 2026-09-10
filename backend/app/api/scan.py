@@ -4,85 +4,133 @@ import asyncio
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from app.models.scan import ScanRequest, ScanResult
-from app.services.gemini_service import analyze_fraud
-from app.services.rag_service import search_rag_database
+from app.services.gemini_service import analyze_fraud, synthesize_grounded_report
+from app.services.network_intelligence import analyze_network_url
+from app.services.rag_service import search_threat_intelligence
+from app.services.risk_engine import apply_network_intelligence, apply_risk_engine
 
 router = APIRouter()
+
+
+IMAGE_RETRIEVAL_QUERY_MAX_CHARS = 1800
 
 
 def sse_event(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
 
 
-async def stream_scan(request: ScanRequest):
-    """Agentic 4-step fraud analysis pipeline with SSE streaming."""
+def build_retrieval_query(request: ScanRequest, result: ScanResult) -> str:
+    """Build a text-only retrieval query from the scan result.
 
-    # Step 1: Classify input
+    Text and URL scans keep the original user-supplied string. Image scans never send
+    base64 to the retrieval layer; they use the already-produced semantic summary and
+    fraud-indicator descriptions instead.
+    """
+    if request.type.value != "image":
+        return request.content
+
+    parts: list[str] = []
+    for value in (result.summary_en, result.summary_bm):
+        cleaned = (value or "").strip()
+        if cleaned and cleaned not in parts:
+            parts.append(cleaned)
+
+    for indicator in result.indicators:
+        category = (indicator.category or "").strip()
+        description = (indicator.description or "").strip()
+        combined = ": ".join(item for item in (category, description) if item)
+        if combined and combined not in parts:
+            parts.append(combined)
+
+    query = " | ".join(parts).strip()
+    return query[:IMAGE_RETRIEVAL_QUERY_MAX_CHARS]
+
+
+def _set_threat_intel_matches(result: ScanResult, matches) -> None:
+    normalized = list(matches or [])
+    result.threat_intel_matches = normalized
+    result.rag_matches = normalized  # legacy API compatibility
+
+
+async def _apply_optional_network_intel(request: ScanRequest, result: ScanResult) -> ScanResult:
+    if request.type.value != "url":
+        return result
+    try:
+        signals = await asyncio.to_thread(analyze_network_url, request.content)
+    except Exception:
+        # Network metadata is supplementary. Provider/DNS/TLS failures must not turn
+        # into SAFE evidence or make the whole fraud scan fail.
+        return result
+    return apply_network_intelligence(result, signals)
+
+
+async def _retrieve_and_ground(request: ScanRequest, result: ScanResult) -> ScanResult:
+    retrieval_query = build_retrieval_query(request, result)
+    if not retrieval_query:
+        _set_threat_intel_matches(result, [])
+        return result
+
+    matches = await asyncio.to_thread(search_threat_intelligence, retrieval_query)
+    _set_threat_intel_matches(result, matches)
+    if matches:
+        result = await asyncio.to_thread(synthesize_grounded_report, result, matches)
+        _set_threat_intel_matches(result, matches)
+    return result
+
+
+async def stream_scan(request: ScanRequest):
+    """Four-stage fraud analysis pipeline with auditable scoring and grounded RAG."""
+
     yield sse_event({"type": "step", "step": 1, "status": "running",
-                     "label": "Classifying input type"})
-    await asyncio.sleep(0.3)
+                     "label": "Preparing input"})
     input_label = {"url": "URL", "text": "Text Message", "image": "Image/Screenshot"}
     yield sse_event({"type": "step", "step": 1, "status": "done",
-                     "label": f"Input classified as: {input_label.get(request.type, 'Unknown')}",
-                     "duration_ms": 300})
+                     "label": f"Input type: {input_label.get(request.type.value, 'Unknown')}",
+                     "duration_ms": 0})
 
-    # Step 2: Gemini Analysis
     yield sse_event({"type": "step", "step": 2, "status": "running",
-                     "label": "Gemini multimodal fraud analysis"})
+                     "label": "Running semantic fraud analysis"})
     t2 = time.time()
     try:
-        result: ScanResult = await asyncio.get_event_loop().run_in_executor(
-            None, analyze_fraud, request.type, request.content
+        result: ScanResult = await asyncio.to_thread(
+            analyze_fraud, request.type.value, request.content
         )
         step2_ms = int((time.time() - t2) * 1000)
         yield sse_event({"type": "step", "step": 2, "status": "done",
-                         "label": "Gemini analysis complete",
+                         "label": "Semantic analysis complete",
                          "duration_ms": step2_ms})
     except Exception as e:
         yield sse_event({"type": "step", "step": 2, "status": "error",
-                         "label": f"Analysis error: {str(e)}"})
+                         "label": "Analysis failed"})
         yield sse_event({"type": "error", "message": str(e)})
         yield sse_event({"type": "done"})
         return
 
-    # Step 3: RAG cross-reference
     yield sse_event({"type": "step", "step": 3, "status": "running",
-                     "label": "Cross-referencing PDRM/BNM/MCMC fraud database"})
+                     "label": "Evaluating deterministic and network security signals"})
     t3 = time.time()
-    rag_matches = search_rag_database(request.content, result.threat_level)
-    result.rag_matches = rag_matches
-    step3_ms = int((time.time() - t3) * 1000)
+    result = apply_risk_engine(request.type.value, request.content, result)
+    result = await _apply_optional_network_intel(request, result)
+    scoring_ms = int((time.time() - t3) * 1000)
     yield sse_event({"type": "step", "step": 3, "status": "done",
-                     "label": f"Found {len(rag_matches)} matching fraud pattern(s)",
-                     "duration_ms": step3_ms})
+                     "label": f"Risk score assembled from {len(result.risk_evidence)} evidence signal(s)",
+                     "duration_ms": scoring_ms})
 
-    # Step 4: Report generation
     yield sse_event({"type": "step", "step": 4, "status": "running",
-                     "label": "Generating bilingual threat report"})
-    await asyncio.sleep(0.2)
+                     "label": "Retrieving and grounding related threat intelligence"})
+    t4 = time.time()
+    result = await _retrieve_and_ground(request, result)
+    step4_ms = int((time.time() - t4) * 1000)
     yield sse_event({"type": "step", "step": 4, "status": "done",
-                     "label": "Bilingual report ready (EN + BM)",
-                     "duration_ms": 200})
+                     "label": f"Grounded report with {len(result.threat_intel_matches or [])} sourced intelligence match(es)",
+                     "duration_ms": step4_ms})
 
-    # Final result
-    yield sse_event({
-        "type": "result",
-        "threat_level": result.threat_level,
-        "confidence_score": result.confidence_score,
-        "summary_en": result.summary_en,
-        "summary_bm": result.summary_bm,
-        "indicators": [i.model_dump() for i in result.indicators],
-        "recommendation_en": result.recommendation_en,
-        "recommendation_bm": result.recommendation_bm,
-        "rag_matches": result.rag_matches,
-        "scan_duration_ms": result.scan_duration_ms,
-    })
+    yield sse_event({"type": "result", **result.model_dump(mode="json")})
     yield sse_event({"type": "done"})
 
 
 @router.post("/scan/stream")
 async def scan_stream(request: ScanRequest):
-    """Streaming SSE endpoint for real-time agent step updates."""
     return StreamingResponse(
         stream_scan(request),
         media_type="text/event-stream",
@@ -95,10 +143,7 @@ async def scan_stream(request: ScanRequest):
 
 @router.post("/scan", response_model=ScanResult)
 async def scan(request: ScanRequest):
-    """Standard JSON endpoint for single-call scan."""
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, analyze_fraud, request.type, request.content
-    )
-    rag_matches = search_rag_database(request.content, result.threat_level)
-    result.rag_matches = rag_matches
-    return result
+    result = await asyncio.to_thread(analyze_fraud, request.type.value, request.content)
+    result = apply_risk_engine(request.type.value, request.content, result)
+    result = await _apply_optional_network_intel(request, result)
+    return await _retrieve_and_ground(request, result)
