@@ -10,6 +10,27 @@ It started as a **Project 2030: MyAI Future Hackathon** prototype by **MyviVroom
 
 ---
 
+## 🔗 Project links
+
+| Link | Destination |
+| --- | --- |
+| 🌐 **Original Live Demo** | [shieldscan-frontend.onrender.com](https://shieldscan-frontend.onrender.com) |
+| ⚡ **Backend API** | [shieldscan-backend-esbt.onrender.com](https://shieldscan-backend-esbt.onrender.com) |
+| 💚 **Backend Health** | [shieldscan-backend-esbt.onrender.com/api/health](https://shieldscan-backend-esbt.onrender.com/api/health) |
+| 📺 **5-Minute Pitch Video** | [YouTube](https://youtu.be/ghL32WbbNEw) |
+| 📊 **Pitch Deck** | [Google Slides](https://docs.google.com/presentation/d/1Jbwn01U6QiXHhrnqZCxwgVfeUZSHYf_P3s38hspAJmQ/edit?usp=sharing) |
+| 🚀 **Vercel frontend config** | [`frontend/vercel.json`](frontend/vercel.json) |
+
+> ℹ️ The original public demo above is the Render-hosted hackathon deployment. The current production-oriented frontend configuration targets **Vercel**, but a specific public `*.vercel.app` deployment URL is not stored in this repository yet.
+
+[![Vercel](https://img.shields.io/badge/Frontend-Vercel-000000?logo=vercel)](https://vercel.com)
+[![Render](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://render.com)
+[![Gemini](https://img.shields.io/badge/AI-Gemini-8E24AA?logo=google)](https://ai.google.dev)
+[![Flutter](https://img.shields.io/badge/Frontend-Flutter%20Web-02569B?logo=flutter)](https://flutter.dev)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+
+---
+
 ## 🎯 The problem
 
 Scam checking is surprisingly messy for an ordinary user.
