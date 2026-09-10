@@ -46,6 +46,14 @@ Risk-bearing network signals are bounded to at most 25 additional deterministic 
 
 A recently registered domain may contribute risk context, but domain age alone is not proof of fraud.
 
+## Image retrieval policy
+
+Image/screenshot scans use Gemini for visual-semantic analysis first. Threat-intelligence retrieval then uses only the generated EN/BM summaries and fraud-indicator text, capped to a bounded query length.
+
+Raw base64 image content is never sent to LanceDB, Vertex AI Search, or the local keyword retriever. If semantic text is empty, the retrieval stage returns no matches instead of attempting to search encoded image bytes.
+
+Retrieved records remain supporting evidence only; they do not alter the deterministic risk score directly and grounded synthesis cannot overwrite the authoritative risk level/score.
+
 ## Risk-score semantics
 
 `confidence_score` in the public response is the ShieldScan **risk score**, not an LLM probability.
@@ -78,7 +86,7 @@ The current service does not maintain a scan-history database. See `docs/PRIVACY
 - No redirect-chain or webpage-content analysis is performed because arbitrary page fetching remains disabled.
 - In-process rate limiting is per application instance; multi-instance deployments require shared state such as Redis.
 - No calibrated probability or validated accuracy metric yet.
-- Image-to-intelligence retrieval is not implemented; image scans currently rely on semantic analysis only.
+- Image retrieval quality depends on the semantic text extracted by Gemini and needs a dedicated labelled image evaluation set.
 - The threat-intelligence corpus is not exhaustive.
 
 These limitations are product requirements, not claims to hide in marketing language.
