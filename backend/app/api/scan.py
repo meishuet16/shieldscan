@@ -4,7 +4,7 @@ import asyncio
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from app.models.scan import ScanRequest, ScanResult
-from app.services.gemini_service import analyze_fraud
+from app.services.gemini_service import analyze_fraud, synthesize_grounded_report
 from app.services.rag_service import search_threat_intelligence
 from app.services.risk_engine import apply_risk_engine
 
@@ -16,14 +16,14 @@ def sse_event(data: dict) -> str:
 
 
 async def stream_scan(request: ScanRequest):
-    """Four-stage fraud analysis pipeline with auditable risk scoring."""
+    """Four-stage fraud analysis pipeline with auditable risk scoring and grounded RAG."""
 
     # Step 1: Validate/classify input
     yield sse_event({"type": "step", "step": 1, "status": "running",
                      "label": "Preparing input"})
     input_label = {"url": "URL", "text": "Text Message", "image": "Image/Screenshot"}
     yield sse_event({"type": "step", "step": 1, "status": "done",
-                     "label": f"Input type: {input_label.get(request.type, 'Unknown')}",
+                     "label": f"Input type: {input_label.get(request.type.value, 'Unknown')}",
                      "duration_ms": 0})
 
     # Step 2: Gemini semantic/multimodal analysis
@@ -31,8 +31,8 @@ async def stream_scan(request: ScanRequest):
                      "label": "Running semantic fraud analysis"})
     t2 = time.time()
     try:
-        result: ScanResult = await asyncio.get_event_loop().run_in_executor(
-            None, analyze_fraud, request.type, request.content
+        result: ScanResult = await asyncio.to_thread(
+            analyze_fraud, request.type.value, request.content
         )
         step2_ms = int((time.time() - t2) * 1000)
         yield sse_event({"type": "step", "step": 2, "status": "done",
@@ -49,23 +49,27 @@ async def stream_scan(request: ScanRequest):
     yield sse_event({"type": "step", "step": 3, "status": "running",
                      "label": "Evaluating deterministic security signals"})
     t3 = time.time()
-    result = apply_risk_engine(request.type, request.content, result)
+    result = apply_risk_engine(request.type.value, request.content, result)
     scoring_ms = int((time.time() - t3) * 1000)
     yield sse_event({"type": "step", "step": 3, "status": "done",
                      "label": f"Risk score assembled from {len(result.risk_evidence)} evidence signal(s)",
                      "duration_ms": scoring_ms})
 
-    # Step 4: provenance-bearing threat-intelligence retrieval.
+    # Step 4: provenance-bearing retrieval + grounded report synthesis.
     yield sse_event({"type": "step", "step": 4, "status": "running",
-                     "label": "Retrieving related threat intelligence"})
+                     "label": "Retrieving and grounding related threat intelligence"})
     t4 = time.time()
-    # Raw image base64 is intentionally not keyword-retrieved. Semantic image-to-intel
-    # retrieval will be added when the indexed corpus is available.
-    intel_matches = [] if request.type == "image" else search_threat_intelligence(request.content)
+    # Raw image base64 is intentionally not retrieved directly. The visual semantic
+    # analysis remains useful, but image-to-text retrieval needs a dedicated query step.
+    intel_matches = [] if request.type.value == "image" else await asyncio.to_thread(
+        search_threat_intelligence, request.content
+    )
     result.rag_matches = intel_matches
+    if intel_matches:
+        result = await asyncio.to_thread(synthesize_grounded_report, result, intel_matches)
     step4_ms = int((time.time() - t4) * 1000)
     yield sse_event({"type": "step", "step": 4, "status": "done",
-                     "label": f"Found {len(intel_matches)} sourced intelligence match(es)",
+                     "label": f"Grounded report with {len(intel_matches)} sourced intelligence match(es)",
                      "duration_ms": step4_ms})
 
     yield sse_event({"type": "result", **result.model_dump(mode="json")})
@@ -88,9 +92,11 @@ async def scan_stream(request: ScanRequest):
 @router.post("/scan", response_model=ScanResult)
 async def scan(request: ScanRequest):
     """Standard JSON endpoint for a complete scan."""
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, analyze_fraud, request.type, request.content
+    result = await asyncio.to_thread(analyze_fraud, request.type.value, request.content)
+    result = apply_risk_engine(request.type.value, request.content, result)
+    result.rag_matches = [] if request.type.value == "image" else await asyncio.to_thread(
+        search_threat_intelligence, request.content
     )
-    result = apply_risk_engine(request.type, request.content, result)
-    result.rag_matches = [] if request.type == "image" else search_threat_intelligence(request.content)
+    if result.rag_matches:
+        result = await asyncio.to_thread(synthesize_grounded_report, result, result.rag_matches)
     return result
