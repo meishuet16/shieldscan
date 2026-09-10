@@ -36,6 +36,17 @@ class RiskEvidence(BaseModel):
     evidence: str
 
 
+class ThreatIntelMatch(BaseModel):
+    id: str
+    title: str
+    category: str
+    source_name: str
+    source_url: Optional[str] = None
+    matched_terms: List[str] = Field(default_factory=list)
+    summary: str
+    retrieval_method: str
+
+
 class ScanResult(BaseModel):
     threat_level: ThreatLevel
     confidence_score: int  # final evidence-based risk score, 0-100
@@ -44,7 +55,7 @@ class ScanResult(BaseModel):
     indicators: List[FraudIndicator]
     recommendation_en: str
     recommendation_bm: str
-    rag_matches: Optional[List[str]] = Field(default_factory=list)
+    rag_matches: Optional[List[ThreatIntelMatch]] = Field(default_factory=list)
     scan_duration_ms: int
     ai_confidence_score: Optional[int] = None
     deterministic_score: int = 0
