@@ -15,7 +15,56 @@ void main() {
 
       expect(result.threatLevel, ThreatLevel.medium);
       expect(result.indicators, isEmpty);
+      expect(result.riskEvidence, isEmpty);
       expect(result.ragMatches, isEmpty);
+    });
+
+    test('parses deterministic and provenance-bearing evidence', () {
+      final result = ScanResult.fromJson({
+        'threat_level': 'HIGH',
+        'confidence_score': 78,
+        'ai_confidence_score': 61,
+        'deterministic_score': 70,
+        'scoring_version': 'shieldscan-v2.1',
+        'summary_en': 'Review needed.',
+        'summary_bm': 'Semakan diperlukan.',
+        'indicators': [],
+        'risk_evidence': [
+          {
+            'source': 'url_intelligence',
+            'code': 'brand_impersonation',
+            'label': 'Possible brand impersonation',
+            'score': 35,
+            'evidence': 'maybank2u-secure-login.xyz',
+          }
+        ],
+        'recommendation_en': 'Verify through official channels.',
+        'recommendation_bm': 'Sahkan melalui saluran rasmi.',
+        'rag_matches': [
+          {
+            'id': 'BNM-PHISHING-GUIDANCE',
+            'title': 'Phishing guidance',
+            'category': 'phishing',
+            'source_name': 'Bank Negara Malaysia — Financial Fraud Alerts',
+            'source_url': 'https://www.bnm.gov.my/financial-fraud-alerts',
+            'matched_terms': ['login'],
+            'summary': 'Lookalike websites may steal banking credentials.',
+            'retrieval_method': 'local-keyword-v1',
+          }
+        ],
+        'scan_duration_ms': 1200,
+      });
+
+      expect(result.confidenceScore, 78);
+      expect(result.aiConfidenceScore, 61);
+      expect(result.deterministicScore, 70);
+      expect(result.scoringVersion, 'shieldscan-v2.1');
+      expect(result.riskEvidence.single.code, 'brand_impersonation');
+      expect(result.ragMatches.single.id, 'BNM-PHISHING-GUIDANCE');
+      expect(
+        result.ragMatches.single.sourceName,
+        startsWith('Bank Negara Malaysia'),
+      );
     });
   });
 
@@ -28,12 +77,12 @@ void main() {
         'type': 'step',
         'step': 2,
         'status': 'done',
-        'label': 'Gemini analysis complete',
+        'label': 'Semantic analysis complete',
         'duration_ms': 1234,
       });
 
       expect(provider.agentSteps[1].status, 'done');
-      expect(provider.agentSteps[1].label, 'Gemini analysis complete');
+      expect(provider.agentSteps[1].label, 'Semantic analysis complete');
       expect(provider.agentSteps[1].durationMs, 1234);
     });
 
@@ -77,6 +126,7 @@ void main() {
         'summary_en': 'High risk.',
         'summary_bm': 'Risiko tinggi.',
         'indicators': [],
+        'risk_evidence': [],
         'recommendation_en': 'Do not proceed.',
         'recommendation_bm': 'Jangan teruskan.',
         'rag_matches': [],
