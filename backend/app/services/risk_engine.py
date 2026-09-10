@@ -20,6 +20,12 @@ def score_to_level(score: int) -> ThreatLevel:
     return ThreatLevel.SAFE
 
 
+def _set_risk_score(result: ScanResult, score: int) -> None:
+    score = max(0, min(int(score), 100))
+    result.risk_score = score
+    result.confidence_score = score  # legacy API compatibility
+
+
 def _url_evidence(signals: Iterable[UrlSignal]) -> List[RiskEvidence]:
     return [
         RiskEvidence(
@@ -53,6 +59,7 @@ def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> Scan
     result.scoring_version = SCORING_VERSION
 
     if input_type != "url":
+        _set_risk_score(result, ai_score)
         result.deterministic_score = 0
         result.risk_evidence = []
         return result
@@ -65,7 +72,7 @@ def apply_risk_engine(input_type: str, content: str, result: ScanResult) -> Scan
     if any(signal.code == "brand_impersonation" for signal in signals):
         final_score = max(final_score, 65)
 
-    result.confidence_score = final_score
+    _set_risk_score(result, final_score)
     result.deterministic_score = deterministic
     result.threat_level = score_to_level(final_score)
     result.risk_evidence = _url_evidence(signals)
@@ -82,7 +89,7 @@ def apply_network_intelligence(result: ScanResult, signals: Iterable[NetworkInte
     signal_list = list(signals)
     network_points = min(25, sum(max(0, signal.weight) for signal in signal_list))
     result.deterministic_score = min(100, result.deterministic_score + network_points)
-    result.confidence_score = min(100, result.confidence_score + network_points)
+    _set_risk_score(result, result.confidence_score + network_points)
     result.threat_level = score_to_level(result.confidence_score)
     result.risk_evidence.extend(_network_evidence(signal_list))
     result.scoring_version = SCORING_VERSION
