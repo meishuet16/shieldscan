@@ -21,4 +21,4 @@ def test_local_intel_returns_provenance_when_it_matches():
 
     assert matches
     assert matches[0].source_name.startswith("Bank Negara Malaysia")
-    assert matches[0].retrieval_method == "local-keyword-v1"
+    assert matches[0].retrieval_method == "local-keyword-v2"
