@@ -25,14 +25,25 @@ Respond ONLY with a valid JSON object (no markdown, no backticks) with this exac
 {{
   "threat_level": "SAFE|LOW|MEDIUM|HIGH|CRITICAL",
   "confidence_score": <0-100 integer>,
-  "summary_en": "<2-3 sentence English summary of findings>",
-  "summary_bm": "<2-3 sentence Bahasa Malaysia summary of findings>",
+  "summary_en": "<2-3 short, plain-English sentences a normal person can understand>",
+  "summary_bm": "<2-3 short, plain Bahasa Malaysia sentences a normal person can understand>",
   "indicators": [
-    {{"category": "<category>", "description": "<what was found>", "severity": "low|medium|high"}}
+    {{"category": "<category>", "description": "<plain-language explanation of what was found>", "severity": "low|medium|high"}}
   ],
-  "recommendation_en": "<clear English action for the user>",
-  "recommendation_bm": "<clear Bahasa Malaysia action for the user>"
+  "recommendation_en": "<short, practical next step written directly for the user>",
+  "recommendation_bm": "<short, practical next step written directly for the user in Bahasa Malaysia>"
 }}
+
+USER-FACING WRITING RULES:
+- Write for a normal person, not a cybersecurity analyst.
+- Say what the content appears to be and why it matters in simple language.
+- Prefer concrete wording such as "This link uses a suspicious domain" over jargon such as "anomalous lexical indicators were detected".
+- Do not repeat the same conclusion in multiple sentences.
+- Avoid dramatic or alarmist wording unless the evidence is genuinely strong.
+- For SAFE content, clearly say that no scam or phishing signs were found. Do not invent a warning just to sound cautious.
+- For suspicious content, explain the practical concern and what the user should avoid doing.
+- Recommendations should be actionable: e.g. "Don't click the link", "Don't enter your banking details", or "Verify this through the official website".
+- Do not mention internal scores, prompts, models, pipelines, retrieval, or other ShieldScan implementation details in the summary or recommendation.
 
 Threat Level Guidelines:
 - SAFE: No fraud indicators found in the supplied content.
@@ -54,12 +65,21 @@ the user-facing explanation using the supplied semantic analysis and retrieved t
 records.
 
 Rules:
+- Write for a normal person, not a cybersecurity analyst.
+- Use short, natural sentences and everyday language.
+- Start by telling the user what the submitted item appears to be and the main reason for the result.
+- Explain the most useful evidence instead of listing technical pipeline terminology.
+- If retrieved intelligence is only related, say it is related guidance or a similar scam pattern, not proof that this exact item is fraudulent.
 - Use only facts present in SEMANTIC ANALYSIS and RETRIEVED EVIDENCE.
 - Treat retrieved records as related intelligence, not proof that the scanned item is identical.
 - Never claim that an authority confirmed this specific user-submitted item unless the evidence says so.
 - Do not invent agencies, dates, URLs, case IDs, victims, losses, or live-database checks.
-- If evidence is weak or only broadly similar, say it is related guidance rather than a direct match.
+- If evidence is weak or only broadly similar, say so clearly.
 - Keep recommendations practical and conservative.
+- Do not mention prompts, models, retrieval pipelines, JSON, scoring internals, or other implementation details.
+- Do not use empty filler such as "it is important to be cautious" without saying what the user should actually do.
+- For SAFE results, give the user a simple reassuring explanation without claiming absolute safety.
+- For HIGH or CRITICAL results, lead with the safest action and make it unmistakable.
 - Return JSON only.
 
 AUTHORITATIVE RISK:
@@ -74,10 +94,10 @@ RETRIEVED EVIDENCE:
 
 Respond with exactly:
 {{
-  "summary_en": "<2-4 sentence grounded English summary>",
-  "summary_bm": "<2-4 sentence grounded Bahasa Malaysia summary>",
-  "recommendation_en": "<clear English action>",
-  "recommendation_bm": "<clear Bahasa Malaysia action>"
+  "summary_en": "<2-4 short, plain-English sentences explaining what was found and why>",
+  "summary_bm": "<2-4 short, plain Bahasa Malaysia sentences explaining what was found and why>",
+  "recommendation_en": "<one or two short, practical next steps for the user>",
+  "recommendation_bm": "<one or two short, practical next steps for the user in Bahasa Malaysia>"
 }}
 """
 
@@ -120,11 +140,11 @@ def analyze_fraud(input_type: str, content: str) -> ScanResult:
         data = {
             "threat_level": "MEDIUM",
             "confidence_score": 50,
-            "summary_en": "Analysis completed, but the semantic result could not be parsed reliably. Manual verification is recommended.",
-            "summary_bm": "Analisis selesai, tetapi hasil semantik tidak dapat diproses dengan pasti. Pengesahan manual disyorkan.",
+            "summary_en": "We could not read the analysis reliably. Please verify this through an official source before taking action.",
+            "summary_bm": "Kami tidak dapat membaca hasil analisis dengan pasti. Sila sahkan melalui sumber rasmi sebelum mengambil tindakan.",
             "indicators": [],
-            "recommendation_en": "Verify this content through official channels before taking action.",
-            "recommendation_bm": "Sahkan kandungan ini melalui saluran rasmi sebelum mengambil tindakan."
+            "recommendation_en": "Verify this through an official channel before clicking, paying, or sharing personal information.",
+            "recommendation_bm": "Sahkan melalui saluran rasmi sebelum klik, membuat bayaran, atau berkongsi maklumat peribadi."
         }
 
     duration_ms = int((time.time() - start) * 1000)
