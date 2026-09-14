@@ -2,6 +2,8 @@
 
 ### **Malaysia-focused fraud intelligence for suspicious links, messages, and screenshots**
 
+> **Understand the content. Verify the signals. Know what to do next.**
+>
 > **“Is this a scam?” should not be answered by one AI guess.**
 
 ShieldScan helps users inspect suspicious digital content before they click, pay, reply, or share personal information. It combines **Gemini semantic analysis**, **deterministic security signals**, **safe network metadata**, and **sourced Malaysian threat intelligence** into one explainable risk report.
@@ -67,6 +69,20 @@ The output is more than a red/green badge. A result can include:
 - practical next-step recommendations.
 
 > 🧠 **Gemini helps ShieldScan understand. The risk engine controls how evidence affects the score. Threat-intelligence retrieval helps ground the explanation.**
+
+### Why ShieldScan?
+
+The goal is not to replace every existing security tool. It is to bring the pieces an ordinary user needs into one place:
+
+| Typical approach | ShieldScan |
+| --- | --- |
+| 🔗 URL checker only | 🔗 URL + 💬 text + 🖼️ screenshot |
+| 🤖 One model gives a final guess | 🧠 AI understanding + explicit evidence |
+| 🌐 Generic or disconnected information | 🇲🇾 Malaysian threat intelligence with provenance |
+| 🔴 Red/green verdict with little context | 📊 Risk score + evidence + explanation |
+| ❓ “This looks suspicious” | 👉 A practical next action |
+
+> **AI explains the situation. Deterministic checks keep the risk score grounded. Threat intelligence adds context.**
 
 ---
 
@@ -401,6 +417,17 @@ Next production-oriented work focuses on:
 4. representative deployed end-to-end verification.
 
 See [`docs/PRODUCTION_ROADMAP.md`](docs/PRODUCTION_ROADMAP.md).
+
+---
+
+## 🎯 Built for
+
+ShieldScan is designed for:
+
+- people who receive suspicious links or messages;
+- Malaysian users dealing with local scam patterns;
+- developers building safer digital experiences;
+- security-awareness and fraud-prevention use cases.
 
 ---
 
