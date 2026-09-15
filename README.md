@@ -4,7 +4,7 @@
 
 > **Understand the content. Verify the signals. Know what to do next.**
 >
-> **“Is this a scam?” should not be answered by one AI guess.**
+> **“Is this a scam?” should not be answered by one AI guess.🥀**
 
 ShieldScan helps users inspect suspicious digital content before they click, pay, reply, or share personal information. It combines **Gemini semantic analysis**, **deterministic security signals**, **safe network metadata**, and **sourced Malaysian threat intelligence** into one explainable risk report.
 
